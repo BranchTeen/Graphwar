@@ -6,19 +6,38 @@
 #include "viewmodel/GameViewModel.h"
 #include "GameCanvas.h"
 #include "FunctionInput.h"
+#include "SaveManagerPage.h"
+#include "PauseMenuPage.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
 
-private slots:
-    void startGame();
+protected:
+    // Esc 键：游戏页 / 暂停页 之间切换
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
+    enum PageIndex {
+        PageStart = 0,
+        PageGame,
+        PageSaveMgr,
+        PagePause
+    };
+
+    void showPage(PageIndex p);
+    void startNewGame();
+    void goToSaveManager();
+    void goToPause();
+    void resumeFromPause();
+    void backToStart();
+    void onGameLoaded();
+
     QStackedWidget *m_stack;
     GameViewModel *m_vm;
     GameCanvas *m_canvas;
     FunctionInput *m_input;
-    QPushButton *m_playAgainBtn = nullptr;
+    SaveManagerPage *m_savePage;
+    PauseMenuPage *m_pausePage;
 };

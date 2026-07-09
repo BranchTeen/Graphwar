@@ -10,8 +10,16 @@ FunctionInput::FunctionInput(GameViewModel *vm, QWidget *parent)
     auto *layout = new QHBoxLayout(this);
     layout->setContentsMargins(10, 5, 10, 5);
 
+    m_pauseBtn = new QPushButton("⏸ Pause", this);
+    m_pauseBtn->setFont(QFont("Consolas", 11));
+    m_pauseBtn->setStyleSheet(
+        "QPushButton{background:#556;color:#fff;padding:6px 12px;border-radius:4px;}"
+        "QPushButton:hover{background:#779;}");
+    connect(m_pauseBtn, &QPushButton::clicked, this, &FunctionInput::pauseClicked);
+    layout->addWidget(m_pauseBtn);
+
     m_input = new QLineEdit(this);
-    m_input->setPlaceholderText("f(x) = ...");
+    m_input->setPlaceholderText("f(x) = ...   (Enter to fire)");
     m_input->setFont(QFont("Consolas", 14));
     layout->addWidget(m_input, 1);
 
@@ -21,6 +29,7 @@ FunctionInput::FunctionInput(GameViewModel *vm, QWidget *parent)
 
     m_launchBtn = new QPushButton("Fire!", this);
     m_launchBtn->setFont(QFont("Consolas", 12, QFont::Bold));
+    m_launchBtn->setDefault(true);   // 回车默认触发
     m_launchBtn->setStyleSheet(
         "QPushButton { background: #4a7; color: white; padding: 6px 20px; border-radius: 4px; }"
         "QPushButton:disabled { background: #555; color: #888; }");
@@ -65,7 +74,6 @@ void FunctionInput::onPhaseChanged(GamePhase phase) {
     m_launchBtn->setEnabled(enabled);
     if (phase == GamePhase::RoundEnd || phase == GamePhase::GameOver) {
         if (m_vm && phase == GamePhase::RoundEnd) {
-            // Auto advance after short delay
             QTimer::singleShot(1500, m_vm, &GameViewModel::nextTurn);
         }
     }

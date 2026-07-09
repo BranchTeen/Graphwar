@@ -11,6 +11,9 @@ public:
     explicit FunctionInput(GameViewModel *vm, QWidget *parent = nullptr);
     void setViewModel(GameViewModel *vm);
 
+signals:
+    void pauseClicked();
+
 private slots:
     void onTextChanged(const QString &text);
     void onLaunch();
@@ -20,6 +23,7 @@ private:
     GameViewModel *m_vm = nullptr;
     QLineEdit *m_input;
     QPushButton *m_launchBtn;
+    QPushButton *m_pauseBtn;
     QLabel *m_costLabel;
     QLabel *m_msgLabel;
 };

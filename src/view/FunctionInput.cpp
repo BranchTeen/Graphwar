@@ -31,6 +31,7 @@ FunctionInput::FunctionInput(GameViewModel *vm, QWidget *parent)
     layout->addWidget(m_msgLabel, 1);
 
     connect(m_input, &QLineEdit::textChanged, this, &FunctionInput::onTextChanged);
+    connect(m_input, &QLineEdit::returnPressed, this, &FunctionInput::onLaunch);
     connect(m_launchBtn, &QPushButton::clicked, this, &FunctionInput::onLaunch);
 }
 

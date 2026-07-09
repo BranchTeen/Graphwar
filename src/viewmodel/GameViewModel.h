@@ -61,6 +61,7 @@ signals:
 
 private:
     void generateSquares();
+    void generateObstacles();
     void pickRandomSquare();
     bool checkHit(const QPointF &pt) const;
 

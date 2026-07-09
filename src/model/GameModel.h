@@ -6,6 +6,7 @@
 
 struct GameModel {
     Player players[2];
+    QVector<Square> obstacles;
     int currentPlayer = 0;
     int selectedSquare = -1;
     int roundNumber = 0;

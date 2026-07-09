@@ -8,10 +8,7 @@
 #include <QDateTime>
 
 QString SaveManager::savesDir() {
-    QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (base.isEmpty()) {
-        base = QCoreApplication::applicationDirPath();
-    }
+    QString base = QCoreApplication::applicationDirPath();
     QDir d(base);
     if (!d.exists()) d.mkpath(".");
     QString saves = base + "/saves";

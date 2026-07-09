@@ -80,7 +80,66 @@ void GameCanvas::paintEvent(QPaintEvent *) {
             if (pl == model.currentPlayer && i == model.selectedSquare && !sq.destroyed) {
                 p.setPen(QPen(Qt::white, 2, Qt::DashLine));
                 p.drawRect(r.adjusted(-2, -2, 2, 2));
+
+                p.save();
+                QString label = QString("(%1, %2)")
+                    .arg(sq.rect.cx, 0, 'f', 2)
+                    .arg(sq.rect.cy, 0, 'f', 2);
+                QFont f = p.font();
+                f.setPointSize(10);
+                f.setBold(true);
+                p.setFont(f);
+
+                QFontMetricsF fm(f);
+                qreal textW = fm.horizontalAdvance(label);
+                qreal textH = fm.height();
+                QPointF labelPos(r.right() + 8, r.top() - textH / 2);
+
+                if (labelPos.x() + textW + 6 > width()) {
+                    labelPos.setX(r.left() - textW - 14);
+                }
+                if (labelPos.y() < 4) labelPos.setY(4);
+                if (labelPos.y() + textH + 4 > height()) labelPos.setY(height() - textH - 4);
+
+                QRectF bg(labelPos.x() - 4, labelPos.y() - 2, textW + 8, textH + 4);
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(0, 0, 0, 180));
+                p.drawRoundedRect(bg, 4, 4);
+
+                p.setPen(Qt::white);
+                p.drawText(QRectF(labelPos.x(), labelPos.y(), textW, textH),
+                           Qt::AlignLeft | Qt::AlignVCenter, label);
+                p.restore();
             }
+        }
+    }
+
+    // Draw obstacles：灰色方块，被破坏的显示为虚线轮廓
+    for (const auto &ob : model.obstacles) {
+        auto tl = worldToScreen(ob.rect.cx - ob.rect.w / 2, ob.rect.cy + ob.rect.h / 2);
+        auto br = worldToScreen(ob.rect.cx + ob.rect.w / 2, ob.rect.cy - ob.rect.h / 2);
+        QRectF r(tl.x(), tl.y(), br.x() - tl.x(), br.y() - tl.y());
+
+        if (ob.destroyed) {
+            // 被破坏：只画虚线轮廓，表示已经破坏的障碍物
+            p.save();
+            p.setPen(QPen(QColor(100, 100, 100), 1.5, Qt::DashLine));
+            p.setBrush(Qt::NoBrush);
+            p.drawRect(r);
+            p.restore();
+        } else {
+            // 完好：实心填充 + 深色边框
+            p.save();
+            p.setBrush(QColor(120, 120, 120, 200));
+            p.setPen(QPen(QColor(60, 60, 60), 2));
+            p.drawRect(r);
+
+            // 中间加一个小圆点，突出"障碍物"视觉感
+            QPointF c = worldToScreen(ob.rect.cx, ob.rect.cy);
+            p.setBrush(QColor(80, 80, 80, 220));
+            p.setPen(Qt::NoPen);
+            p.drawEllipse(c, 5, 5);
+            p.restore();
         }
     }
 

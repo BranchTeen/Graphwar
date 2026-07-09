@@ -15,7 +15,7 @@ struct SaveInfo {
 };
 
 // 外部文件保存管理器：3 个存档槽
-// 文件位置：%APPDATA%/Graphwar/saves/slot_N.json
+// 文件位置：<可执行文件所在目录>/saves/slot_N.json（跨平台通用）
 class SaveManager {
 public:
     static constexpr int kSlotCount = 3;

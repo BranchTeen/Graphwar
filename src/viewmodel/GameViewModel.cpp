@@ -17,6 +17,7 @@ GameViewModel::GameViewModel(QObject *parent) : QObject(parent) {
 void GameViewModel::newGame() {
     m_model = GameModel{};
     generateSquares();
+    generateObstacles();
     m_model.currentPlayer = 0;
     m_model.roundNumber = 1;
     m_model.phase = GamePhase::WaitingInput;
@@ -49,7 +50,7 @@ void GameViewModel::generateSquares() {
             bool placed = false;
             for (int attempt = 0; attempt < maxAttempts; ++attempt) {
                 double cx = QRandomGenerator::global()->generateDouble() * (xMax - xMin) + xMin;
-                double cy = QRandomGenerator::global()->generateDouble() * 20.0 - 10.0;
+                double cy = QRandomGenerator::global()->generateDouble() * 38.0 - 19.0;
                 bool ok = true;
                 for (const auto &sq : squares) {
                     double dx = cx - sq.rect.cx;
@@ -75,6 +76,57 @@ void GameViewModel::generateSquares() {
     m_model.players[0].color = QColor(60, 120, 220, 200);
     m_model.players[1].id = 1;
     m_model.players[1].color = QColor(220, 60, 60, 200);
+}
+
+void GameViewModel::generateObstacles() {
+    // 障碍物尺寸统一，比玩家方块（0.8×0.8）大
+    const double w = 1.8, h = 1.8;
+    const double minDistBetween = 2.5;      // 障碍物之间最小中心距
+    const double minDistToPlayer = 1.2;     // 与玩家方块的最小中心距
+    const int count = 10;
+    const int maxAttempts = 500;
+
+    m_model.obstacles.clear();
+
+    // 障碍物分布在中央地带：x ∈ [-4, 4]，y ∈ [-12, 12]
+    // 注意：玩家方块区域是 x ∈ [-20, -5] 和 x ∈ [5, 20]
+    double xMin = -20.0, xMax = 20.0;
+    double yMin = -17.0, yMax = 17.0;
+
+    for (int k = 0; k < count; ++k) {
+        bool placed = false;
+        for (int attempt = 0; attempt < maxAttempts && !placed; ++attempt) {
+            double cx = QRandomGenerator::global()->generateDouble() * (xMax - xMin) + xMin;
+            double cy = QRandomGenerator::global()->generateDouble() * (yMax - yMin) + yMin;
+
+            // 1) 不能与任何玩家方块重合
+            bool ok = true;
+            for (int pl = 0; pl < 2 && ok; ++pl) {
+                for (const auto &sq : m_model.players[pl].squares) {
+                    double dx = cx - sq.rect.cx;
+                    double dy = cy - sq.rect.cy;
+                    if (std::sqrt(dx*dx + dy*dy) < minDistToPlayer + 0.4) {
+                        ok = false; break;
+                    }
+                }
+            }
+            if (!ok) continue;
+
+            // 2) 不能与已有障碍物重合
+            for (const auto &ob : m_model.obstacles) {
+                double dx = cx - ob.rect.cx;
+                double dy = cy - ob.rect.cy;
+                if (std::sqrt(dx*dx + dy*dy) < minDistBetween) {
+                    ok = false; break;
+                }
+            }
+            if (!ok) continue;
+
+            m_model.obstacles.push_back(Square(cx, cy, w, h));
+            placed = true;
+        }
+        if (!placed) break; // 空间不够就放弃
+    }
 }
 
 void GameViewModel::selectSquare(int index) {
@@ -150,6 +202,24 @@ void GameViewModel::advanceAnimation() {
     double y = evaluate(m_currentExpr, x) + m_constAdjust;
     m_model.trajectory.push_back({x, y});
 
+    // 先检测障碍物：如果碰到未被破坏的障碍物，立即中止攻击并破坏它
+    for (int i = 0; i < m_model.obstacles.size(); ++i) {
+        auto &ob = m_model.obstacles[i];
+        if (!ob.destroyed && ob.rect.contains(x, y)) {
+            ob.destroyed = true;
+            m_animTimer.stop();
+            m_model.history.clear();                  // 只保留上一条
+            if (!m_model.trajectory.isEmpty())
+                m_model.history.append(m_model.trajectory);
+            m_model.phase = GamePhase::RoundEnd;
+            m_message = "Hit an obstacle!";
+            emit messageChanged(m_message);
+            emit phaseChanged(GamePhase::RoundEnd);
+            emit trajectoryUpdated();
+            return;
+        }
+    }
+
     auto &opponent = m_model.opponentRef();
     for (int i = 0; i < opponent.squares.size(); ++i) {
         if (!opponent.squares[i].destroyed && opponent.squares[i].rect.contains(x, y)) {
@@ -171,6 +241,7 @@ void GameViewModel::advanceAnimation() {
 
     if (std::fabs(x) > 30 || std::fabs(y) > 25) {
         m_animTimer.stop();
+        m_model.history.clear();                    // 只保留上一条
         if (!m_model.trajectory.isEmpty())
             m_model.history.append(m_model.trajectory);
         m_model.phase = GamePhase::RoundEnd;
@@ -327,6 +398,18 @@ QString GameViewModel::toJson() const {
     }
     root["history"] = historyArr;
 
+    QJsonArray obsArr;
+    for (const auto &ob : m_model.obstacles) {
+        QJsonObject o;
+        o["cx"] = ob.rect.cx;
+        o["cy"] = ob.rect.cy;
+        o["w"]  = ob.rect.w;
+        o["h"]  = ob.rect.h;
+        o["destroyed"] = ob.destroyed;
+        obsArr.append(o);
+    }
+    root["obstacles"] = obsArr;
+
     return QJsonDocument(root).toJson(QJsonDocument::Compact);
 }
 
@@ -385,6 +468,17 @@ bool GameViewModel::fromJson(const QString &text) {
                                   pt.toObject().value("y").toDouble()));
         }
         m_model.history.append(pts);
+    }
+
+    QJsonArray obsArr = root.value("obstacles").toArray();
+    m_model.obstacles.clear();
+    for (const auto &el : obsArr) {
+        if (!el.isObject()) continue;
+        QJsonObject o = el.toObject();
+        Square ob(o.value("cx").toDouble(), o.value("cy").toDouble(),
+                  o.value("w").toDouble(1.8), o.value("h").toDouble(1.8));
+        ob.destroyed = o.value("destroyed").toBool(false);
+        m_model.obstacles.push_back(ob);
     }
 
     return true;

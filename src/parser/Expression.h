@@ -15,6 +15,13 @@ struct NumberExpr : Expr {
     int cost() const override { return 1; }
 };
 
+struct NegateExpr : Expr {
+    std::unique_ptr<Expr> arg;
+    explicit NegateExpr(std::unique_ptr<Expr> a) : arg(std::move(a)) {}
+    double eval(double x) const override { return -arg->eval(x); }
+    int cost() const override { return arg->cost(); }
+};
+
 struct VariableExpr : Expr {
     double eval(double x) const override { return x; }
     int cost() const override { return 1; }

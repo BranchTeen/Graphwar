@@ -1,14 +1,12 @@
 #include "GameCanvas.h"
 #include <QPainter>
 #include <QPainterPath>
-#include <QMouseEvent>
 #include <cmath>
 
 GameCanvas::GameCanvas(GameViewModel *vm, QWidget *parent)
     : QWidget(parent) {
     setViewModel(vm);
     setMinimumSize(600, 400);
-    setMouseTracking(true);
 }
 
 void GameCanvas::setViewModel(GameViewModel *vm) {
@@ -28,12 +26,6 @@ QPointF GameCanvas::worldToScreen(double wx, double wy) const {
     double sx = m_ox + wx * m_scale;
     double sy = m_oy - wy * m_scale;
     return {sx, sy};
-}
-
-QPointF GameCanvas::screenToWorld(int sx, int sy) const {
-    double wx = (sx - m_ox) / m_scale;
-    double wy = -(sy - m_oy) / m_scale;
-    return {wx, wy};
 }
 
 void GameCanvas::paintEvent(QPaintEvent *) {
@@ -190,19 +182,4 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         .arg(model.roundNumber)
         .arg(model.players[1].aliveCount());
     p.drawText(QRect(10, 10, w - 20, 30), Qt::AlignLeft, info);
-}
-
-void GameCanvas::mousePressEvent(QMouseEvent *event) {
-    if (!m_vm) return;
-    auto wpos = screenToWorld(event->pos().x(), event->pos().y());
-    const auto &model = m_vm->model();
-    const auto &player = model.currentPlayerRef();
-    for (int i = 0; i < player.squares.size(); ++i) {
-        if (!player.squares[i].destroyed &&
-            player.squares[i].rect.contains(wpos.x(), wpos.y())) {
-            m_vm->selectSquare(i);
-            refresh();
-            return;
-        }
-    }
 }

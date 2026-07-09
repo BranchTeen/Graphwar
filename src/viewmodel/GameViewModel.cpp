@@ -20,6 +20,7 @@ void GameViewModel::newGame() {
     generateObstacles();
     m_model.currentPlayer = 0;
     m_model.roundNumber = 1;
+    m_model.pointsLevel = 1;           // 开局点数等级从 1 起，P0 操作后再增长
     m_model.phase = GamePhase::WaitingInput;
     m_model.history.clear();
     m_costPreview = 0;
@@ -126,14 +127,6 @@ void GameViewModel::generateObstacles() {
             placed = true;
         }
         if (!placed) break; // 空间不够就放弃
-    }
-}
-
-void GameViewModel::selectSquare(int index) {
-    if (m_model.phase != GamePhase::WaitingInput) return;
-    auto &player = m_model.currentPlayerRef();
-    if (index >= 0 && index < player.squares.size() && !player.squares[index].destroyed) {
-        m_model.selectedSquare = index;
     }
 }
 
@@ -282,9 +275,16 @@ void GameViewModel::pickRandomSquare() {
 void GameViewModel::nextTurn() {
     if (m_model.phase == GamePhase::GameOver) return;
 
+    // 轮数与点数增长 **不同步**：
+    //  - roundNumber 在 P1 操作结束、切回 P0 时增长（双方各操作一次算一整轮）
+    //  - pointsLevel 在 P0 操作结束、切换到 P1 时增长（先手方操作后立刻增加点数）
     if (m_model.currentPlayer == 1) {
         m_model.roundNumber++;
         emit roundChanged(m_model.roundNumber);
+    }
+    if (m_model.currentPlayer == 0) {
+        m_model.pointsLevel++;
+        emit pointsChanged(m_model.availablePoints());
     }
     m_model.currentPlayer = 1 - m_model.currentPlayer;
     m_model.phase = GamePhase::WaitingInput;
@@ -293,7 +293,11 @@ void GameViewModel::nextTurn() {
     pickRandomSquare();
 
     emit turnChanged(m_model.currentPlayer);
-    emit pointsChanged(m_model.availablePoints());
+    // pointsChanged 已在上面对 P0→P1 的切换中发出；
+    // 对 P1→P0 的切换，轮数增长但点数等级不变，仍然需要把更新后的 availablePoints 发到 UI
+    if (m_model.currentPlayer == 0) {
+        emit pointsChanged(m_model.availablePoints());
+    }
     emit costPreviewChanged(0);
     emit phaseChanged(GamePhase::WaitingInput);
     m_message = QString("Player %1's turn - enter a function").arg(m_model.currentPlayer + 1);
@@ -356,6 +360,7 @@ QString GameViewModel::toJson() const {
     root["version"] = 1;
     root["currentPlayer"] = m_model.currentPlayer;
     root["roundNumber"] = m_model.roundNumber;
+    root["pointsLevel"] = m_model.pointsLevel;       // 与 roundNumber 不同步的点数等级
     root["selectedSquare"] = m_model.selectedSquare;
 
     int phaseInt = 0;

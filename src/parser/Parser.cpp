@@ -52,8 +52,8 @@ class Parser {
         if (peek().type == TokenType::Minus) {
             advance();
             auto arg = parseUnary();
-            return std::make_unique<BinaryExpr>('*',
-                std::make_unique<NumberExpr>(-1), std::move(arg));
+            // 负号（一元减）不消耗额外点数，等价于取负
+            return std::make_unique<NegateExpr>(std::move(arg));
         }
         return parsePostfix();
     }

@@ -14,11 +14,9 @@ public slots:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     QPointF worldToScreen(double wx, double wy) const;
-    QPointF screenToWorld(int sx, int sy) const;
 
     GameViewModel *m_vm = nullptr;
     double m_scale = 40.0; // pixels per world unit

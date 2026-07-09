@@ -30,7 +30,6 @@ public:
 
 public slots:
     void newGame();
-    void selectSquare(int index);
     void updateCostPreview(const QString &expr);
     void launch(const QString &expr);
     void nextTurn();

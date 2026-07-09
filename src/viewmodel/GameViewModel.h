@@ -57,6 +57,7 @@ signals:
     void animationFinished();
     void pausedChanged(bool paused);
     void saveResult(int slot, bool ok, const QString &info); // 存档操作完成
+    void gameOver(const QString &winnerInfo);                // 游戏结束：UI 弹出"重新开始"按钮
 
 private:
     void generateSquares();

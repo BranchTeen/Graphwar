@@ -4,6 +4,8 @@
 #include <QLabel>
 #include <QKeyEvent>
 #include <QPushButton>
+#include <QDialog>
+#include <QFont>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Graphwar");
@@ -113,6 +115,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     
     connect(m_input, &FunctionInput::pauseClicked, this, &MainWindow::goToPause);
 
+    // 游戏结束 → 弹出"重新开始"对话框（这条 connect 必须在 MainWindow 构造时绑定，否则 gameOver 信号无响应）
+    connect(m_vm, &GameViewModel::gameOver, this, &MainWindow::onGameOver);
+
     // Stack
     m_stack = new QStackedWidget(this);
     m_stack->addWidget(startPage);     // 0: StartPage
@@ -155,6 +160,57 @@ void MainWindow::backToStart() {
 
 void MainWindow::onGameLoaded() {
     showPage(PageGame);
+}
+
+void MainWindow::onGameOver(const QString &winnerInfo) {
+    auto *dialog = new QDialog(this);
+    dialog->setWindowTitle("Game Over");
+    dialog->setStyleSheet("background:#141420;color:#ddd;");
+    dialog->setMinimumWidth(420);
+
+    auto *layout = new QVBoxLayout(dialog);
+    layout->setContentsMargins(30, 30, 30, 30);
+    layout->setSpacing(20);
+
+    auto *title = new QLabel(winnerInfo, dialog);
+    title->setAlignment(Qt::AlignCenter);
+    title->setStyleSheet("color:#4af;font-size:28px;font-weight:bold;");
+
+    auto *hint = new QLabel("Do you want to play again?", dialog);
+    hint->setAlignment(Qt::AlignCenter);
+    hint->setStyleSheet("color:#aaa;font-size:16px;");
+
+    auto *playAgainBtn = new QPushButton("PLAY AGAIN", dialog);
+    playAgainBtn->setCursor(Qt::PointingHandCursor);
+    playAgainBtn->setStyleSheet(
+        "QPushButton { background:#2a7; color:white; font-size:18px; font-weight:bold;"
+        "padding:12px 40px; border-radius:8px; }"
+        "QPushButton:hover { background:#3c9; }");
+
+    auto *backToStartBtn = new QPushButton("BACK TO START PAGE", dialog);
+    backToStartBtn->setCursor(Qt::PointingHandCursor);
+    backToStartBtn->setStyleSheet(
+        "QPushButton { background:#384; color:white; font-size:16px;"
+        "padding:10px 40px; border-radius:8px; }"
+        "QPushButton:hover { background:#4a5; }");
+
+    layout->addWidget(title);
+    layout->addWidget(hint);
+    layout->addWidget(playAgainBtn, 0, Qt::AlignCenter);
+    layout->addWidget(backToStartBtn, 0, Qt::AlignCenter);
+
+    connect(playAgainBtn, &QPushButton::clicked, dialog, [=]() {
+        dialog->accept();
+        m_vm->newGame();
+        showPage(PageGame);
+    });
+    connect(backToStartBtn, &QPushButton::clicked, dialog, [=]() {
+        dialog->accept();
+        showPage(PageStart);
+    });
+
+    dialog->exec();
+    dialog->deleteLater();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {

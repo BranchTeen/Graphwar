@@ -182,4 +182,23 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         .arg(model.roundNumber)
         .arg(model.players[1].aliveCount());
     p.drawText(QRect(10, 10, w - 20, 30), Qt::AlignLeft, info);
+
+    // 游戏结束时：在画布中央绘制 GAME OVER 文字作为视觉兜底
+    if (model.phase == GamePhase::GameOver) {
+        p.save();
+        p.setPen(QPen(QColor(74, 170, 255), 3));
+        QFont big = p.font();
+        big.setPointSize(48);
+        big.setBold(true);
+        p.setFont(big);
+        p.drawText(rect(), Qt::AlignCenter, "GAME OVER");
+        p.setPen(Qt::white);
+        QFont small = p.font();
+        small.setPointSize(14);
+        small.setBold(false);
+        p.setFont(small);
+        p.drawText(rect().translated(0, 50), Qt::AlignCenter,
+                   "(A dialog should also pop up with a Play Again button)");
+        p.restore();
+    }
 }

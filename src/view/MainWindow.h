@@ -33,6 +33,7 @@ private:
     void resumeFromPause();
     void backToStart();
     void onGameLoaded();
+    void onGameOver(const QString &winnerInfo);   // 游戏结束后弹出"重新开始"对话框
 
     QStackedWidget *m_stack;
     GameViewModel *m_vm;

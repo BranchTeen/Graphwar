@@ -229,6 +229,7 @@ void GameViewModel::advanceAnimation() {
         emit messageChanged(m_message);
         emit phaseChanged(GamePhase::GameOver);
         emit trajectoryUpdated();
+        emit gameOver(m_message);       // 通知 UI 弹出"重新开始"按钮
         return;
     }
 

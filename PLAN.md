@@ -148,19 +148,19 @@ Graphwar/
     │   └── Square.h                        # 方块数据（坐标、大小、存活状态）
     ├── viewmodel/
     │   ├── GameViewModel.h/cpp             # ViewModel：管理完整游戏逻辑
-    │   └── SaveManager.h/cpp               # 存档管理器：三槽位 JSON 读写
+    │   ├── SaveManager.h/cpp               # 存档管理器：三槽位 JSON 读写
+    │   └── parser/
+    │       ├── Token.h                     # Token 类型定义
+    │       ├── Tokenizer.h/cpp             # 词法分析器
+    │       ├── Expression.h/cpp            # AST 节点定义
+    │       ├── Parser.h/cpp                # 递归下降解析器
+    │       └── Evaluator.h/cpp             # 表达式求值与点数计算
     ├── view/
     │   ├── MainWindow.h/cpp                # 主窗口（QStackedWidget 切换四页：开始/游戏/存档管理/暂停）
     │   ├── GameCanvas.h/cpp                # 画布：坐标系、方块、障碍物、函数曲线、动画轨迹
     │   ├── FunctionInput.h/cpp             # 函数输入面板（回车触发发射、默认按钮）
     │   ├── SaveManagerPage.h/cpp           # 存档管理页（三槽位 Load/Delete）
     │   └── PauseMenuPage.h/cpp             # 暂停菜单（继续/存档/返回标题）
-    ├── parser/
-    │   ├── Token.h                         # Token 类型定义
-    │   ├── Tokenizer.h/cpp                 # 词法分析器
-    │   ├── Expression.h/cpp                # AST 节点定义
-    │   ├── Parser.h/cpp                    # 递归下降解析器
-    │   └── Evaluator.h/cpp                 # 表达式求值与点数计算
     └── utils/
         └── Geometry.h                      # Rect（矩形数据结构 + 矩形包含判定）
 ```
@@ -170,7 +170,7 @@ Graphwar/
 | 层 | 职责 | 文件 |
 |----|------|------|
 | **Model** | 纯数据容器，无业务逻辑，可被序列化 | `GameModel`, `Player`, `Square` |
-| **ViewModel** | 持有 Model，封装全部游戏逻辑，通过 Q_PROPERTY / signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager` |
+| **ViewModel** | 持有 Model，封装全部游戏逻辑，通过 Q_PROPERTY / signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager`, `parser/`（表达式解析与计费） |
 | **View** | 被动渲染，通过信号绑定 ViewModel 的属性变化，用户操作调用 ViewModel 的槽函数 | `MainWindow`, `GameCanvas`, `FunctionInput`, `SaveManagerPage`, `PauseMenuPage` |
 
 ---

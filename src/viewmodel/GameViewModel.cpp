@@ -1,7 +1,7 @@
 #include "GameViewModel.h"
 #include "SaveManager.h"
-#include "parser/Tokenizer.h"
-#include "parser/Evaluator.h"
+#include "viewmodel/parser/Tokenizer.h"
+#include "viewmodel/parser/Evaluator.h"
 #include <QRandomGenerator>
 #include <QJsonDocument>
 #include <QJsonObject>

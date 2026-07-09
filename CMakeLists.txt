@@ -39,14 +39,14 @@ set(SOURCES
     src/view/PauseMenuPage.h
     src/view/PauseMenuPage.cpp
     src/utils/Geometry.h
-    src/parser/Tokenizer.h
-    src/parser/Tokenizer.cpp
-    src/parser/Expression.h
-    src/parser/Expression.cpp
-    src/parser/Parser.h
-    src/parser/Parser.cpp
-    src/parser/Evaluator.h
-    src/parser/Evaluator.cpp
+    src/viewmodel/parser/Tokenizer.h
+    src/viewmodel/parser/Tokenizer.cpp
+    src/viewmodel/parser/Expression.h
+    src/viewmodel/parser/Expression.cpp
+    src/viewmodel/parser/Parser.h
+    src/viewmodel/parser/Parser.cpp
+    src/viewmodel/parser/Evaluator.h
+    src/viewmodel/parser/Evaluator.cpp
 )
 
 # Windows：WIN32 表示 GUI 子系统（无控制台窗口）

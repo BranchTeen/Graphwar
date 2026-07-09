@@ -44,7 +44,7 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     int w = width(), h = height();
     m_ox = w / 2.0;
     m_oy = h / 2.0;
-    m_scale = std::min(w, h) / 24.0;
+    m_scale = std::min(w, h) / 40.0;
 
     // Background
     p.fillRect(rect(), QColor(20, 20, 30));

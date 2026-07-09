@@ -35,13 +35,13 @@ void GameViewModel::newGame() {
 }
 
 void GameViewModel::generateSquares() {
-    double w = 0.6, h = 0.6;
-    double minDist = 1.5;
-    int maxAttempts = 200;
+    double w = 0.8, h = 0.8;
+    double minDist = 3.0;
+    int maxAttempts = 300;
 
     for (int p = 0; p < 2; ++p) {
-        double xMin = (p == 0) ? -12.0 : 3.0;
-        double xMax = (p == 0) ? -3.0 : 12.0;
+        double xMin = (p == 0) ? -20.0 : 10.0;
+        double xMax = (p == 0) ? -10.0 : 20.0;
         auto &squares = m_model.players[p].squares;
         squares.clear();
 
@@ -49,7 +49,7 @@ void GameViewModel::generateSquares() {
             bool placed = false;
             for (int attempt = 0; attempt < maxAttempts; ++attempt) {
                 double cx = QRandomGenerator::global()->generateDouble() * (xMax - xMin) + xMin;
-                double cy = QRandomGenerator::global()->generateDouble() * 14.0 - 7.0;
+                double cy = QRandomGenerator::global()->generateDouble() * 20.0 - 10.0;
                 bool ok = true;
                 for (const auto &sq : squares) {
                     double dx = cx - sq.rect.cx;
@@ -169,7 +169,7 @@ void GameViewModel::advanceAnimation() {
         return;
     }
 
-    if (std::fabs(x) > 22 || std::fabs(y) > 14) {
+    if (std::fabs(x) > 30 || std::fabs(y) > 25) {
         m_animTimer.stop();
         if (!m_model.trajectory.isEmpty())
             m_model.history.append(m_model.trajectory);

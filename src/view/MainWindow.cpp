@@ -28,33 +28,28 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     auto *topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(10, 5, 10, 5);
 
-    auto *p1Label = new QLabel("Player 1", this);
-    p1Label->setStyleSheet("color:#3c78dc;font-weight:bold;font-size:14px;");
-    auto *p2Label = new QLabel("Player 2", this);
-    p2Label->setStyleSheet("color:#dc3c3c;font-weight:bold;font-size:14px;");
+    m_p1Label = new QLabel("Player 1", this);
+    m_p1Label->setStyleSheet("color:#3c78dc;font-weight:bold;font-size:14px;");
+    m_p2Label = new QLabel("Player 2", this);
+    m_p2Label->setStyleSheet("color:#dc3c3c;font-weight:bold;font-size:14px;");
     auto *roundLabel = new QLabel(this);
     roundLabel->setStyleSheet("color:#ffcc00;font-size:14px;font-weight:bold;");
     auto *pointsLabel = new QLabel(this);
     pointsLabel->setStyleSheet("color:#ffcc00;font-size:14px;");
 
-    topLayout->addWidget(p1Label);
+    topLayout->addWidget(m_p1Label);
     topLayout->addStretch();
     topLayout->addWidget(roundLabel);
     topLayout->addWidget(pointsLabel);
     topLayout->addStretch();
-    topLayout->addWidget(p2Label);
+    topLayout->addWidget(m_p2Label);
 
     gameLayout->insertWidget(0, topBar);
     gameLayout->addWidget(m_canvas, 1);
     gameLayout->addWidget(m_input);
 
-    connect(m_vm, &GameViewModel::turnChanged, this, [=](int player) {
-        p1Label->setStyleSheet(player == 0
-            ? "color:#3c78dc;font-weight:bold;font-size:14px;"
-            : "color:#555;font-size:14px;");
-        p2Label->setStyleSheet(player == 1
-            ? "color:#dc3c3c;font-weight:bold;font-size:14px;"
-            : "color:#555;font-size:14px;");
+    connect(m_vm, &GameViewModel::turnChanged, this, [this](int player) {
+        updateTopBarColors();
     });
     connect(m_vm, &GameViewModel::roundChanged, this, [=](int r) {
         roundLabel->setText(QString("Round %1").arg(r));
@@ -85,27 +80,44 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         "QPushButton:hover { background: #3c9; }");
     newGameBtn->setCursor(Qt::PointingHandCursor);
 
-    auto *loadGameBtn = new QPushButton("LOAD / MANAGE SAVES", this);
+    auto *loadGameBtn = new QPushButton("Load / Manage Saves", this);
     loadGameBtn->setStyleSheet(
         "QPushButton { background: #384; color: white; font-size: 18px;"
         "padding: 12px 50px; border-radius: 8px; }"
         "QPushButton:hover { background: #4a5; }");
     loadGameBtn->setCursor(Qt::PointingHandCursor);
 
+    auto *configBtn = new QPushButton("Config", this);
+    configBtn->setStyleSheet(
+        "QPushButton { background: #364; color: white; font-size: 18px;"
+        "padding: 12px 50px; border-radius: 8px; }"
+        "QPushButton:hover { background: #485; }");
+    configBtn->setCursor(Qt::PointingHandCursor);
+
     startLayout->addStretch();
     startLayout->addWidget(titleLabel);
     startLayout->addWidget(subtitleLabel);
     startLayout->addWidget(newGameBtn, 0, Qt::AlignCenter);
+    startLayout->addWidget(configBtn, 0, Qt::AlignCenter);
     startLayout->addWidget(loadGameBtn, 0, Qt::AlignCenter);
     startLayout->addStretch();
 
     connect(newGameBtn, &QPushButton::clicked, this, &MainWindow::startNewGame);
+    connect(configBtn, &QPushButton::clicked, this, &MainWindow::goToConfig);
     connect(loadGameBtn, &QPushButton::clicked, this, &MainWindow::goToSaveManager);
 
     // Save manager page
     m_savePage = new SaveManagerPage(m_vm, this);
     connect(m_savePage, &SaveManagerPage::backToStart, this, &MainWindow::backToStart);
     connect(m_savePage, &SaveManagerPage::gameLoaded, this, &MainWindow::onGameLoaded);
+
+    // Config page
+    m_configPage = new ConfigPage(this);
+    connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
+    connect(m_configPage, &ConfigPage::configSaved, this, [this](const GameConfig &cfg) {
+        m_vm->setConfig(cfg);
+        showPage(PageStart);
+    });
 
     // Pause page
     m_pausePage = new PauseMenuPage(m_vm, this);
@@ -124,6 +136,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_stack->addWidget(gamePage);      // 1: GamePage
     m_stack->addWidget(m_savePage);    // 2: SaveManagerPage
     m_stack->addWidget(m_pausePage);   // 3: PausePage
+    m_stack->addWidget(m_configPage);  // 4: ConfigPage
     m_stack->setCurrentIndex(PageStart);
     setCentralWidget(m_stack);
 }
@@ -132,9 +145,26 @@ void MainWindow::showPage(PageIndex p) {
     m_stack->setCurrentIndex(p);
 }
 
+void MainWindow::updateTopBarColors() {
+    const auto &cfg = m_vm->config();
+    auto makeStyle = [](const QColor &c) {
+        return QString("color:rgba(%1,%2,%3,%4);font-weight:bold;font-size:14px;")
+            .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
+    };
+    auto dimStyle = QString("color:#555;font-size:14px;");
+    int cur = m_vm->currentPlayer();
+    m_p1Label->setStyleSheet(cur == 0 ? makeStyle(cfg.player1Color) : dimStyle);
+    m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : dimStyle);
+}
+
 void MainWindow::startNewGame() {
     m_vm->newGame();
+    updateTopBarColors();
     showPage(PageGame);
+}
+
+void MainWindow::goToConfig() {
+    showPage(PageConfig);
 }
 
 void MainWindow::goToSaveManager() {
@@ -220,7 +250,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             goToPause();
         } else if (current == PagePause) {
             resumeFromPause();
-        } else if (current == PageSaveMgr) {
+        } else if (current == PageSaveMgr || current == PageConfig) {
             backToStart();
         } else {
             QMainWindow::keyPressEvent(event);

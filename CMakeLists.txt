@@ -24,6 +24,7 @@ set(SOURCES
     src/model/Square.h
     src/model/GameModel.h
     src/model/GamePhase.h
+    src/model/GameConfig.h
     src/viewmodel/GameViewModel.h
     src/viewmodel/GameViewModel.cpp
     src/viewmodel/SaveManager.h
@@ -38,6 +39,8 @@ set(SOURCES
     src/view/SaveManagerPage.cpp
     src/view/PauseMenuPage.h
     src/view/PauseMenuPage.cpp
+    src/view/ConfigPage.h
+    src/view/ConfigPage.cpp
     src/utils/Geometry.h
     src/viewmodel/parser/Tokenizer.h
     src/viewmodel/parser/Tokenizer.cpp
@@ -47,7 +50,12 @@ set(SOURCES
     src/viewmodel/parser/Parser.cpp
     src/viewmodel/parser/Evaluator.h
     src/viewmodel/parser/Evaluator.cpp
+    resources/resources.qrc
 )
+
+if(WIN32)
+    set(SOURCES ${SOURCES} resources/app.rc)
+endif()
 
 # Windows：WIN32 表示 GUI 子系统（无控制台窗口）
 # macOS：MACOSX_BUNDLE 会生成 .app 包

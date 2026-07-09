@@ -1,9 +1,13 @@
 # Graphwar 游戏开发计划
 
+> **规则：**
+> 1. 所有代码层面的更新（新增/修改文件、逻辑变更、配置变更、UI 变更等）必须同步更新 PLAN.md 中对应章节，确保 PLAN.md 始终反映项目最新状态。
+> 2. 程序的结构必须遵循 MVVM 设计模式。
+
 ## 游戏规则
 
 ### 基本概念
-- 双方各拥有 **5 个方格**（矩形区域，每个 0.8×0.8 单位），在地图两侧**各自随机分布**
+- 双方各拥有 **N 个方格**（默认 5，可在配置页调整 1-10 个，矩形区域，每个 0.8×0.8 单位），在地图两侧**各自随机分布**
 - 方格同时作为 **己方发射点** 和 **对方攻击目标**
 - **玩家不可以自行选择发射方块**：每回合由**系统随机挑选**一个未被摧毁的己方方块作为本次发射点
 - 被选中的方块会以**白色虚线边框 + 旁边显示 (cx, cy) 坐标标签**进行高亮显示
@@ -15,9 +19,10 @@
 - **无时间限制**，**无输入遮挡**（双方可见）
 
 ### 障碍物系统
-- 地图随机分布 **10 个障碍物**（1.8×1.8，比玩家方块更大）
-- 障碍物随机分布在 x ∈ [-20, 20]，y ∈ [-17, 17]
-- 障碍物之间保持 2.5 单位中心距，障碍物与玩家方格保持 ≥ 1.6 单位距离
+- 地图随机分布 **N 个障碍物**（默认 10 个，可在配置页调整 0-30 个，默认边长 1.8，可在配置页调整 0.5-5.0）
+- 障碍物随机分布在 x ∈ [-20, 20]，y ∈ [-20, 20]（相比原[-17,17] 扩大以适配大尺寸障碍物）
+- 障碍物之间最小中心距 = `size + 0.7`（非硬编码，随障碍物大小动态调整）
+- 障碍物与玩家方格最小中心距 = `size * 0.5 + 0.3`（随障碍物大小动态调整，保证半间距 + 缓冲）
 - **玩家攻击过程中，若在到达对方方格或触碰边界之前碰到障碍物：**
   - 攻击**立即中止**
   - 该障碍物被破坏（视觉上变为虚线轮廓）
@@ -30,13 +35,14 @@
 - 每一局结束后可选择再来一局
 
 ### 开始界面
-- 游戏启动时显示开始界面，包含标题、简介和 "START GAME" 按钮
-- **新增**：开始页有 "LOAD / MANAGE SAVES" 按钮，可进入存档管理页面
-- 点击 START GAME 进入游戏界面
+- 游戏启动时显示开始界面，包含标题、简介和 "NEW GAME"、"Config"、"Load / Manage Saves" 三个按钮
+- **Config**：进入配置页，可调整方块数量、障碍物数量/大小、玩家颜色、坐标标签显示、网格线显示
+- **Load / Manage Saves**：进入存档管理页面
+- 点击 NEW GAME 直接使用当前配置开始游戏
 - 游戏结束后显示 "Play Again" 按钮可重新开始
 
 ### 方格布局（随机生成）
-- 每局开始前，双方各自的 5 个方格在己方半区**随机生成**
+- 每局开始前，双方各自的 **N 个方格**（默认 5，可在配置页调整 1-10 个）在己方半区**随机生成**
 - **玩家 1（左侧）**：x ∈ [-20, -10]，y ∈ [-10, 10]，方块之间最小间距 3.0 单位
 - **玩家 2（右侧）**：x ∈ [10, 20]，y ∈ [-10, 10]，方块之间最小间距 3.0 单位
 - 每个方块大小 **0.8×0.8** 单位
@@ -139,10 +145,15 @@ Graphwar/
 ├── vcpkg.json                              # vcpkg 依赖清单（qtbase）
 ├── PLAN.md
 ├── README.md
+├── resources/
+│   ├── app.ico                             # 应用图标（Windows exe 嵌入 + Qt 运行时）
+│   ├── resources.qrc                       # Qt 资源文件（AUTORCC 编译）
+│   └── app.rc                              # Windows 资源脚本（exe 图标）
 └── src/
     ├── main.cpp                            # 程序入口
     ├── model/
     │   ├── GameModel.h                     # 游戏数据模型（玩家、方块、障碍物、回合）
+    │   ├── GameConfig.h                    # 配置数据（方块数、障碍物数/大小、颜色、坐标标签、网格线）
     │   ├── GamePhase.h                     # 游戏阶段枚举（WaitingInput/Animating/RoundEnd/GameOver）
     │   ├── Player.h                        # 玩家数据（id、颜色、方块列表）
     │   └── Square.h                        # 方块数据（坐标、大小、存活状态）
@@ -156,9 +167,10 @@ Graphwar/
     │       ├── Parser.h/cpp                # 递归下降解析器
     │       └── Evaluator.h/cpp             # 表达式求值与点数计算
     ├── view/
-    │   ├── MainWindow.h/cpp                # 主窗口（QStackedWidget 切换四页：开始/游戏/存档管理/暂停）
-    │   ├── GameCanvas.h/cpp                # 画布：坐标系、方块、障碍物、函数曲线、动画轨迹
+    │   ├── MainWindow.h/cpp                # 主窗口（QStackedWidget 切换五页：开始/游戏/存档管理/暂停/配置）
+    │   ├── GameCanvas.h/cpp                # 画布：坐标系、方块、障碍物、函数曲线、动画轨迹、网格线
     │   ├── FunctionInput.h/cpp             # 函数输入面板（回车触发发射、默认按钮）
+    │   ├── ConfigPage.h/cpp                # 配置页（方块数、障碍物数/大小、颜色、坐标标签、网格线）
     │   ├── SaveManagerPage.h/cpp           # 存档管理页（三槽位 Load/Delete）
     │   └── PauseMenuPage.h/cpp             # 暂停菜单（继续/存档/返回标题）
     └── utils/
@@ -169,9 +181,9 @@ Graphwar/
 
 | 层 | 职责 | 文件 |
 |----|------|------|
-| **Model** | 纯数据容器，无业务逻辑，可被序列化 | `GameModel`, `Player`, `Square` |
-| **ViewModel** | 持有 Model，封装全部游戏逻辑，通过 Q_PROPERTY / signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager`, `parser/`（表达式解析与计费） |
-| **View** | 被动渲染，通过信号绑定 ViewModel 的属性变化，用户操作调用 ViewModel 的槽函数 | `MainWindow`, `GameCanvas`, `FunctionInput`, `SaveManagerPage`, `PauseMenuPage` |
+| **Model** | 纯数据容器，无业务逻辑，可被序列化 | `GameModel`, `GameConfig`, `Player`, `Square` |
+| **ViewModel** | 持有 Model + GameConfig，封装全部游戏逻辑，通过 Q_PROPERTY / signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager`, `parser/`（表达式解析与计费） |
+| **View** | 被动渲染，通过信号绑定 ViewModel 的属性变化，用户操作调用 ViewModel 的槽函数 | `MainWindow`, `GameCanvas`, `FunctionInput`, `ConfigPage`, `SaveManagerPage`, `PauseMenuPage` |
 
 ---
 
@@ -233,14 +245,15 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 **绘制内容（按 z-order）：**
 1. 背景（深色）
-2. 坐标轴（灰色实线）
-3. **障碍物**（灰色填充，中心圆点；被破坏后显示为虚线轮廓）
-4. 双方的方格（半透明矩形，不同颜色，被摧毁的标记为灰色）
-5. **选中方格**：白色虚线边框 + **旁边显示 (cx, cy) 坐标标签**，带半透明黑底
-6. **上一条历史轨迹**（淡灰色，仅保留最近一次）
-7. **当前动画轨迹**（亮色，根据玩家区分：玩家 1 为蓝调，玩家 2 为红调，逐渐延伸）
-8. **轨迹上的"弹头"**（高亮圆点，沿曲线运动）
-9. 顶部状态栏：回合数、当前玩家提示
+2. **网格线**（可选，默认关闭；每 5 单位一条，横竖对称分布，颜色与背景略有区分）
+3. 坐标轴（灰色实线）
+4. **障碍物**（灰色填充矩形，无中心圆点；被破坏后显示为虚线轮廓）
+5. 双方的方格（半透明矩形，不同颜色，被摧毁的标记为灰色）
+6. **选中方格**：白色虚线边框 + **可选的 (cx, cy) 坐标标签**（默认开启，可在配置页关闭），带半透明黑底
+7. **上一条历史轨迹**（淡灰色，仅保留最近一次）
+8. **当前动画轨迹**（亮色，根据玩家区分：玩家 1 为蓝调，玩家 2 为红调，逐渐延伸）
+9. **轨迹上的"弹头"**（高亮圆点，沿曲线运动）
+10. 顶部状态栏：回合数、当前玩家提示
 
 **动画机制：**
 - QTimer 驱动，帧间隔 16ms（~60fps）
@@ -258,6 +271,11 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 区域判定：`cx - w/2 ≤ px ≤ cx + w/2 && cy - h/2 ≤ py ≤ cy + h/2`（与方块可视大小一致）
 - 碰到障碍物后立即停止动画，标记破坏，结束该回合
 - 命中对方方块后继续延伸直到出边界，累计所有命中数
+
+**障碍物生成时的间距（非碰撞检测阶段，而是生成阶段）：**
+- 障碍物之间最小中心距 = `size + 0.7`，避免生成时互相重叠
+- 障碍物与玩家方格最小中心距 = `size * 0.5 + 0.3`（障碍物半宽 + 方格半宽 0.4 + 缓冲 0.3 → 检查阈值`size * 0.5 + 0.7`）
+- 两个距离均随障碍物 size 配置自动缩放
 
 ### 5. 存档系统 (SaveManager)
 
@@ -284,7 +302,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 ### 6. UI 布局
 
-**流程：MainWindow 使用 QStackedWidget 切换四页**
+**流程：MainWindow 使用 QStackedWidget 切换五页**
 
 **第 0 页 — 开始界面：**
 ```
@@ -294,7 +312,9 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 │         Two players, one curve.                      │
 │      Fire functions at each other!                   │
 │                                                      │
-│             [ START GAME ]   [ MANAGE SAVES ]       │
+│               [ NEW GAME ]                          │
+│                [ Config ]                           │
+│          [ Load / Manage Saves ]                    │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
@@ -302,7 +322,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 **第 1 页 — 游戏界面：**
 ```
 ┌──────────────────────────────────────────────────────┐
-│  P1:3/5   Round 3   Pts:8   P2:2/5      [PAUSE]   │  ← 顶栏（含暂停按钮）
+│  P1:3/5   Round 3   Pts:8   P2:2/5      [PAUSE]   │  ← 顶栏（含暂停按钮，P1/P2 文字颜色随配置动态变化）
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │              Game Canvas                            │
@@ -335,6 +355,31 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 └──────────────────────────────────────────────────────┘
 ```
 
+**第 4 页 — 配置页：**
+```
+┌──────────────────────────────────────────────────────┐
+│                   Game Settings                      │
+├──────────────────────────────────────────────────────┤
+│  Squares per player (1-10):   [5] ±                 │
+│  Obstacles (0-30):           [10] ±                 │
+│  Obstacle size (0.5-5.0):   [1.8] ±                 │
+│                                                      │
+│  ☑ Show square coordinates                          │
+│  ☐ Show grid lines                                  │
+│                                                      │
+│  P1 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
+│  P2 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
+├──────────────────────────────────────────────────────┤
+│           [ ← Back ]     [ Save ]                   │
+└──────────────────────────────────────────────────────┘
+```
+- 颜色使用 8 种预设色块（蓝/红/绿/橙/紫/青/黄/粉），点击选中
+- 两位玩家不能选择相同颜色
+- SpinBox 按钮使用 ± 符号（`setButtonSymbols(PlusMinus)`）
+- 表单标签左对齐 + 字段垂直居中（`setLabelAlignment(AlignLeft)` + 每字段 `item->setAlignment(AlignVCenter)`）
+- Save 后将配置保存到 ViewModel 的 GameConfig 中，返回开始页
+- 点击 NEW GAME 时使用当前已保存的配置开始
+
 **第 3 页 — 暂停菜单页：**
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -353,20 +398,23 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 ```
 
 **交互流程（MVVM 数据流）：**
-1. 开始界面点击 START GAME → 切换到游戏页，ViewModel 初始化，系统随机挑选己方发射点
-2. 开始界面点击 MANAGE SAVES → 切换到存档管理页
-3. 游戏过程中点击 PAUSE 或按 ESC → 切换到暂停页
-4. 暂停页按 CONTINUE 或 ESC → 回到游戏，状态完全恢复
-5. 暂停页点击 SAVE → 将当前游戏状态写入指定槽位的 JSON 文件
-6. 存档管理页点击 LOAD → 从 JSON 读回游戏状态，回到游戏页，系统重新随机挑选发射点
-7. 存档管理页点击 DELETE → 删除对应 JSON 文件
-8. 游戏过程中：
+1. 开始界面点击 NEW GAME → 切换到游戏页，ViewModel 使用当前 GameConfig 初始化（方块颜色、数量等），顶栏 P1/P2 文字颜色同步更新，系统随机挑选己方发射点
+2. 开始界面点击 Config → 切换到配置页
+3. 配置页点击 Save → 保存 GameConfig 到 ViewModel，返回开始页
+4. 配置页点击 Back / Esc → 返回开始页，配置不保存
+5. 开始界面点击 Load / Manage Saves → 切换到存档管理页
+6. 游戏过程中点击 PAUSE 或按 ESC → 切换到暂停页
+7. 暂停页按 CONTINUE 或 ESC → 回到游戏，状态完全恢复
+8. 暂停页点击 SAVE → 将当前游戏状态写入指定槽位的 JSON 文件
+9. 存档管理页点击 LOAD → 从 JSON 读回游戏状态，回到游戏页，系统重新随机挑选发射点
+10. 存档管理页点击 DELETE → 删除对应 JSON 文件
+11. 游戏过程中：
    - 输入区输入表达式 → 实时计算消耗点数显示
    - 回车或点击 FIRE → 调用 `GameViewModel::launch(QString expr)`
    - 玩家**无法再通过点击画布切换发射点**，发射点完全由系统在回合开始时随机挑选
    - ViewModel 内部：解析表达式 → 计算消耗 → 校验点数 → 计算常数 C → 进入动画阶段
    - QTimer 驱动逐帧绘制轨迹；优先检查障碍物碰撞，然后检查对方方格；到达边界结束
-   - 游戏结束后显示 Play Again
+   - 游戏结束后弹出 Play Again / Back to Start 对话框
 
 ---
 
@@ -391,6 +439,10 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 | 15 | UI 交互 + MVVM 绑定 | MainWindow 四页 QStackedWidget（标题/游戏/存档/暂停）、FunctionInput（回车触发发射）、Canvas（点击选发射点+坐标标签） |
 | 16 | 跨平台部署 | CMake 自动部署 Qt platforms/qwindows.dll（Windows），RPATH 配置（Linux/macOS） |
 | 17 | 调试与体验优化 | 边界处理、视觉美化、修复坐标/方向 Bug |
+| 18 | 配置系统 | GameConfig 数据模型 + ConfigPage 配置页（方块数、障碍物数/大小、8 色预设色块、坐标标签开关、网格线开关） |
+| 19 | 网格线 | 画布可选网格线，每 5 单位一条，横竖对称分布（范围 [-30,30] 覆盖全画布），与背景微差 |
+| 20 | 配置同步 | ConfigPage 修改的颜色/方块数在 NEW GAME 时生效，顶栏 P1/P2 文字颜色随配置动态变化 |
+| 21 | 应用图标 | resources/app.ico + resources.qrc + app.rc + main.cpp setWindowIcon，跨平台覆盖 |
 
 ---
 
@@ -415,11 +467,21 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 方格世界坐标 **0.8×0.8**（正方形），碰撞判定区域与方格大小一致。
 
-障碍物调用 `GameViewModel::generateObstacles()`，分布在 x ∈ [-20, 20]，y ∈ [-17, 17]，共 10 个，最小间距 2.5 单位，与玩家方格最小间距 1.6 单位。
+障碍物调用 `GameViewModel::generateObstacles(count, size)`，分布在 x ∈ [-20, 20]，y ∈ [-20, 20]（相比原 [-17,17] 扩大以适配大尺寸障碍物），共 count 个（默认 10），最小间距 `size + 0.7` 单位，与玩家方格最小间距 `size * 0.5 + 0.3` 单位（检查时 +0.4 → `size * 0.5 + 0.7`）。两个间距均随 size 自动缩放。
 
 **对称性说明：**
 - 两侧半区各自独立随机，不做镜像对称
 - 每局重启时重新随机，增加 replayability
+
+---
+
+### 7. 应用图标
+
+- `resources/app.ico` 同时服务两个用途：
+  1. **Qt 运行时图标**：通过 `resources.qrc` 编译进二进制，`main.cpp` 调用 `app.setWindowIcon(QIcon(":/app.ico"))`，显示在窗口标题栏和任务栏
+  2. **Windows exe 图标**：通过 `app.rc` 资源脚本嵌入，使 `.exe` 文件在资源管理器中显示图标
+- macOS 需额外准备 `.icns` 文件并设置 `MACOSX_BUNDLE_ICON_FILE`
+- Linux 使用 Qt 运行时图标即可，桌面图标依赖 `.desktop` 文件
 
 ---
 

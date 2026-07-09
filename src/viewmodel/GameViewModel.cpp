@@ -16,8 +16,8 @@ GameViewModel::GameViewModel(QObject *parent) : QObject(parent) {
 
 void GameViewModel::newGame() {
     m_model = GameModel{};
-    generateSquares();
-    generateObstacles();
+    generateSquares(m_config.squaresPerPlayer, m_config.player1Color, m_config.player2Color);
+    generateObstacles(m_config.obstacleCount, m_config.obstacleSize);
     m_model.currentPlayer = 0;
     m_model.roundNumber = 1;
     m_model.pointsLevel = 1;           // 开局点数等级从 1 起，P0 操作后再增长
@@ -36,22 +36,24 @@ void GameViewModel::newGame() {
     emitAllState();
 }
 
-void GameViewModel::generateSquares() {
+void GameViewModel::generateSquares(int count, const QColor &p1Color, const QColor &p2Color) {
     double w = 0.8, h = 0.8;
     double minDist = 3.0;
     int maxAttempts = 300;
 
     for (int p = 0; p < 2; ++p) {
-        double xMin = (p == 0) ? -20.0 : 10.0;
-        double xMax = (p == 0) ? -10.0 : 20.0;
+        double xMin = (p == 0) ? -20.0 : 1.0;
+        double xMax = (p == 0) ? -1.0 : 20.0;
+        double yMin = -10.0;
+        double yMax = 10.0;
         auto &squares = m_model.players[p].squares;
         squares.clear();
 
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < count; ++i) {
             bool placed = false;
             for (int attempt = 0; attempt < maxAttempts; ++attempt) {
                 double cx = QRandomGenerator::global()->generateDouble() * (xMax - xMin) + xMin;
-                double cy = QRandomGenerator::global()->generateDouble() * 38.0 - 19.0;
+                double cy = QRandomGenerator::global()->generateDouble() * (yMax - yMin) + yMin;
                 bool ok = true;
                 for (const auto &sq : squares) {
                     double dx = cx - sq.rect.cx;
@@ -74,17 +76,15 @@ void GameViewModel::generateSquares() {
     }
 
     m_model.players[0].id = 0;
-    m_model.players[0].color = QColor(60, 120, 220, 200);
+    m_model.players[0].color = p1Color;
     m_model.players[1].id = 1;
-    m_model.players[1].color = QColor(220, 60, 60, 200);
+    m_model.players[1].color = p2Color;
 }
 
-void GameViewModel::generateObstacles() {
-    // 障碍物尺寸统一，比玩家方块（0.8×0.8）大
-    const double w = 1.8, h = 1.8;
-    const double minDistBetween = 2.5;      // 障碍物之间最小中心距
-    const double minDistToPlayer = 1.2;     // 与玩家方块的最小中心距
-    const int count = 10;
+void GameViewModel::generateObstacles(int count, double size) {
+    const double w = size, h = size;
+    const double minDistBetween = size + 0.7;           // 障碍物之间最小中心距（硬编码 2.5 → size=1.8 时等价）
+    const double minDistToPlayer = size * 0.5 + 0.3;    // 与玩家方块的最小中心距（硬编码 1.2 → size=1.8 时等价）
     const int maxAttempts = 500;
 
     m_model.obstacles.clear();
@@ -92,7 +92,7 @@ void GameViewModel::generateObstacles() {
     // 障碍物分布在中央地带：x ∈ [-4, 4]，y ∈ [-12, 12]
     // 注意：玩家方块区域是 x ∈ [-20, -5] 和 x ∈ [5, 20]
     double xMin = -20.0, xMax = 20.0;
-    double yMin = -17.0, yMax = 17.0;
+    double yMin = -20.0, yMax = 20.0;
 
     for (int k = 0; k < count; ++k) {
         bool placed = false;
@@ -459,9 +459,9 @@ bool GameViewModel::fromJson(const QString &text) {
     }
 
     m_model.players[0].id = 0;
-    m_model.players[0].color = QColor(60, 120, 220, 200);
+    m_model.players[0].color = m_config.player1Color;
     m_model.players[1].id = 1;
-    m_model.players[1].color = QColor(220, 60, 60, 200);
+    m_model.players[1].color = m_config.player2Color;
 
     QJsonArray historyArr = root.value("history").toArray();
     m_model.history.clear();

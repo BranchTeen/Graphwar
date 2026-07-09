@@ -3,6 +3,7 @@
 #include <QTimer>
 #include <QString>
 #include "model/GameModel.h"
+#include "model/GameConfig.h"
 #include "utils/Geometry.h"
 
 class GameViewModel : public QObject {
@@ -27,6 +28,9 @@ public:
     bool paused() const { return m_paused; }
 
     const GameModel &model() const { return m_model; }
+
+    void setConfig(const GameConfig &cfg) { m_config = cfg; }
+    const GameConfig &config() const { return m_config; }
 
 public slots:
     void newGame();
@@ -60,8 +64,8 @@ signals:
     void gameOver(const QString &winnerInfo);                // 游戏结束：UI 弹出"重新开始"按钮
 
 private:
-    void generateSquares();
-    void generateObstacles();
+    void generateSquares(int count, const QColor &p1Color, const QColor &p2Color);
+    void generateObstacles(int count, double size);
     void pickRandomSquare();
     bool checkHit(const QPointF &pt) const;
 
@@ -72,6 +76,7 @@ private:
     void emitAllState();
 
     GameModel m_model;
+    GameConfig m_config;
     QTimer m_animTimer;
     QString m_currentExpr;
     double m_animX = 0;

@@ -41,6 +41,15 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     // Background
     p.fillRect(rect(), QColor(20, 20, 30));
 
+    // Grid lines (every 5 units, centered on origin)
+    if (m_vm->config().showGridLines) {
+        p.setPen(QPen(QColor(35, 35, 50), 1));
+        for (int gx = -20; gx <= 20; gx += 5)
+            p.drawLine(worldToScreen(gx, -30), worldToScreen(gx, 30));
+        for (int gy = -20; gy <= 20; gy += 5)
+            p.drawLine(worldToScreen(-30, gy), worldToScreen(30, gy));
+    }
+
     // Axes
     p.setPen(QPen(QColor(180, 180, 200), 2));
     auto ox = worldToScreen(0, 0);
@@ -73,35 +82,37 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                 p.setPen(QPen(Qt::white, 2, Qt::DashLine));
                 p.drawRect(r.adjusted(-2, -2, 2, 2));
 
-                p.save();
-                QString label = QString("(%1, %2)")
-                    .arg(sq.rect.cx, 0, 'f', 2)
-                    .arg(sq.rect.cy, 0, 'f', 2);
-                QFont f = p.font();
-                f.setPointSize(10);
-                f.setBold(true);
-                p.setFont(f);
+                if (m_vm->config().showCoordinates) {
+                    p.save();
+                    QString label = QString("(%1, %2)")
+                        .arg(sq.rect.cx, 0, 'f', 2)
+                        .arg(sq.rect.cy, 0, 'f', 2);
+                    QFont f = p.font();
+                    f.setPointSize(10);
+                    f.setBold(true);
+                    p.setFont(f);
 
-                QFontMetricsF fm(f);
-                qreal textW = fm.horizontalAdvance(label);
-                qreal textH = fm.height();
-                QPointF labelPos(r.right() + 8, r.top() - textH / 2);
+                    QFontMetricsF fm(f);
+                    qreal textW = fm.horizontalAdvance(label);
+                    qreal textH = fm.height();
+                    QPointF labelPos(r.right() + 8, r.top() - textH / 2);
 
-                if (labelPos.x() + textW + 6 > width()) {
-                    labelPos.setX(r.left() - textW - 14);
+                    if (labelPos.x() + textW + 6 > width()) {
+                        labelPos.setX(r.left() - textW - 14);
+                    }
+                    if (labelPos.y() < 4) labelPos.setY(4);
+                    if (labelPos.y() + textH + 4 > height()) labelPos.setY(height() - textH - 4);
+
+                    QRectF bg(labelPos.x() - 4, labelPos.y() - 2, textW + 8, textH + 4);
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(QColor(0, 0, 0, 180));
+                    p.drawRoundedRect(bg, 4, 4);
+
+                    p.setPen(Qt::white);
+                    p.drawText(QRectF(labelPos.x(), labelPos.y(), textW, textH),
+                               Qt::AlignLeft | Qt::AlignVCenter, label);
+                    p.restore();
                 }
-                if (labelPos.y() < 4) labelPos.setY(4);
-                if (labelPos.y() + textH + 4 > height()) labelPos.setY(height() - textH - 4);
-
-                QRectF bg(labelPos.x() - 4, labelPos.y() - 2, textW + 8, textH + 4);
-                p.setPen(Qt::NoPen);
-                p.setBrush(QColor(0, 0, 0, 180));
-                p.drawRoundedRect(bg, 4, 4);
-
-                p.setPen(Qt::white);
-                p.drawText(QRectF(labelPos.x(), labelPos.y(), textW, textH),
-                           Qt::AlignLeft | Qt::AlignVCenter, label);
-                p.restore();
             }
         }
     }
@@ -125,12 +136,6 @@ void GameCanvas::paintEvent(QPaintEvent *) {
             p.setBrush(QColor(120, 120, 120, 200));
             p.setPen(QPen(QColor(60, 60, 60), 2));
             p.drawRect(r);
-
-            // 中间加一个小圆点，突出"障碍物"视觉感
-            QPointF c = worldToScreen(ob.rect.cx, ob.rect.cy);
-            p.setBrush(QColor(80, 80, 80, 220));
-            p.setPen(Qt::NoPen);
-            p.drawEllipse(c, 5, 5);
             p.restore();
         }
     }

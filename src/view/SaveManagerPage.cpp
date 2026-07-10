@@ -1,5 +1,4 @@
 #include "SaveManagerPage.h"
-#include "viewmodel/SaveManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -51,8 +50,11 @@ void SaveManagerPage::rebuild() {
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(12);
 
-    for (int slot = 0; slot < SaveManager::kSlotCount; ++slot) {
-        SaveInfo info = SaveManager::slotInfo(slot);
+    int total = m_vm ? m_vm->slotCount() : 0;
+    QVector<SaveInfo> infos = m_vm ? m_vm->slotInfos() : QVector<SaveInfo>();
+    for (int slot = 0; slot < total; ++slot) {
+        SaveInfo info;
+        if (slot < infos.size()) info = infos[slot];
 
         auto *row = new QWidget(m_slotsContainer);
         auto *rowLayout = new QHBoxLayout(row);
@@ -103,7 +105,7 @@ void SaveManagerPage::loadSlot(int slot) {
     if (!ok) {
         QMessageBox::warning(this, "Load failed",
             QString("Could not load slot %1.\nFile path:\n%2")
-                .arg(slot + 1).arg(SaveManager::slotPath(slot)));
+                .arg(slot + 1).arg(m_vm->slotPath(slot)));
         return;
     }
     emit gameLoaded();

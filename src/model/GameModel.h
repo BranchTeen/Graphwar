@@ -1,31 +1,110 @@
 #pragma once
-#include "Player.h"
-#include "GamePhase.h"
+#include <QObject>
+#include <QString>
 #include <QVector>
 #include <QPointF>
+#include <QColor>
+class QTimer;
+#include "Player.h"
+#include "GamePhase.h"
+#include "GameConfig.h"
+#include "Square.h"
 
-struct GameModel {
-    Player players[2];
-    QVector<Square> obstacles;
-    int currentPlayer = 0;
-    int selectedSquare = -1;
-    int roundNumber = 0;
-    int pointsLevel = 0;            // 与 roundNumber 解耦，控制可用点数增长
-    GamePhase phase = GamePhase::WaitingInput;
+// GameModel：MVVM 的 Model 层
+// - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）
+// - 实现核心业务逻辑（发射、动画推进、回合切换、胜负判断、JSON 序列化）
+// - 通过 signals 通知上层（ViewModel）状态变化
+// - 不依赖任何 View 层代码，不知道 UI 的存在
+class GameModel : public QObject {
+    Q_OBJECT
+public:
+    explicit GameModel(QObject *parent = nullptr);
 
-    QVector<QPointF> trajectory;       // 当前动画轨迹点
-    QVector<QVector<QPointF>> history; // 历史轨迹
-    double trajectoryMaxX = 0;
+    // ===== 状态查询（只读接口） =====
+    int currentPlayer() const { return m_currentPlayer; }
+    int roundNumber() const { return m_roundNumber; }
+    int availablePoints() const { return 3 + m_pointsLevel * 2; }
+    int pointsLevel() const { return m_pointsLevel; }
+    GamePhase phase() const { return m_phase; }
+    QString message() const { return m_message; }
+    bool paused() const { return m_paused; }
+    int selectedSquareIndex() const { return m_selectedSquare; }
 
-    int availablePoints() const {
-        // 点数随 pointsLevel 递增（注意：与 roundNumber 不同步）
-        // pointsLevel 在 P0 操作结束后增长，所以一轮内点数会从 3 + 2 × N 涨到 3 + 2 × (N+1)
-        // 第 1 轮（P0 先手）：5 点；P1 操作时：7 点；第 2 轮 P0 操作：7 点；P1 操作：9 点；……
-        return 3 + pointsLevel * 2;
+    QColor playerColor(int player) const {
+        if (player < 0 || player >= 2) return QColor(128, 128, 128);
+        return m_players[player].color;
     }
 
-    Player &currentPlayerRef() { return players[currentPlayer]; }
-    const Player &currentPlayerRef() const { return players[currentPlayer]; }
-    Player &opponentRef() { return players[1 - currentPlayer]; }
-    const Player &opponentRef() const { return players[1 - currentPlayer]; }
+    int aliveCount(int player) const {
+        if (player < 0 || player >= 2) return 0;
+        return m_players[player].aliveCount();
+    }
+
+    QVector<Square> playerSquares(int player) const {
+        if (player < 0 || player >= 2) return {};
+        return m_players[player].squares;  // 返回副本，外部不会修改内部状态
+    }
+
+    QVector<Square> obstacles() const { return m_obstacles; }
+    QVector<QPointF> trajectory() const { return m_trajectory; }
+    QVector<QVector<QPointF>> history() const { return m_history; }
+
+    const GameConfig &config() const { return m_config; }
+    void setConfig(const GameConfig &cfg) { m_config = cfg; }
+
+    bool isGameOver() const { return m_phase == GamePhase::GameOver; }
+    bool isWaitingInput() const { return m_phase == GamePhase::WaitingInput; }
+    bool isAnimating() const { return m_phase == GamePhase::Animating; }
+
+    // ===== 业务操作（供 ViewModel 调用） =====
+    void newGame(const GameConfig &cfg);
+    int calculateCost(const QString &expr) const;   // 返回表达式消耗的点数
+    bool launch(const QString &expr);                // 尝试发射，返回是否成功
+    void stepAnimation();                            // 推进一帧动画
+    void nextTurn();                                 // 结束当前回合，切到下一个玩家
+    void pause();
+    void resume();
+    void togglePause();
+
+    // ===== 序列化（Model 层自序列化 + 反序列化） =====
+    QString toJson() const;
+    bool fromJson(const QString &text);
+
+signals:
+    void turnChanged(int player);
+    void roundChanged(int round);
+    void pointsChanged(int points);
+    void phaseChanged(GamePhase phase);
+    void messageChanged(const QString &msg);
+    void squareHit(int playerId, int squareIndex);
+    void trajectoryUpdated();
+    void gameOver(const QString &winnerInfo);
+    void pausedChanged(bool paused);
+
+private:
+    void generateSquares(int count, const QColor &p1Color, const QColor &p2Color);
+    void generateObstacles(int count, double size);
+    void pickRandomSquare();
+
+    // ===== 持久化游戏状态 =====
+    Player m_players[2];
+    QVector<Square> m_obstacles;
+    int m_currentPlayer = 0;
+    int m_selectedSquare = -1;
+    int m_roundNumber = 0;
+    int m_pointsLevel = 0;
+    GamePhase m_phase = GamePhase::WaitingInput;
+    QVector<QPointF> m_trajectory;
+    QVector<QVector<QPointF>> m_history;
+    QString m_message;
+    bool m_paused = false;
+    GameConfig m_config;
+
+    // ===== 动画/发射的临时状态 =====
+    QString m_currentExpr;
+    double m_animX = 0;
+    double m_animStep = 0.15;
+    double m_constAdjust = 0;
+    bool m_hasHit = false;
+    QTimer *m_animTimer = nullptr;   // Model 自身管理动画节奏
 };

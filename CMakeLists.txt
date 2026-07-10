@@ -23,12 +23,15 @@ set(SOURCES
     src/model/Player.h
     src/model/Square.h
     src/model/GameModel.h
+    src/model/GameModel.cpp
     src/model/GamePhase.h
     src/model/GameConfig.h
+    src/model/SaveInfo.h
+    src/model/SaveInfo.cpp
+    src/model/SaveManager.h
+    src/model/SaveManager.cpp
     src/viewmodel/GameViewModel.h
     src/viewmodel/GameViewModel.cpp
-    src/viewmodel/SaveManager.h
-    src/viewmodel/SaveManager.cpp
     src/view/MainWindow.h
     src/view/MainWindow.cpp
     src/view/GameCanvas.h
@@ -42,14 +45,15 @@ set(SOURCES
     src/view/ConfigPage.h
     src/view/ConfigPage.cpp
     src/utils/Geometry.h
-    src/viewmodel/parser/Tokenizer.h
-    src/viewmodel/parser/Tokenizer.cpp
-    src/viewmodel/parser/Expression.h
-    src/viewmodel/parser/Expression.cpp
-    src/viewmodel/parser/Parser.h
-    src/viewmodel/parser/Parser.cpp
-    src/viewmodel/parser/Evaluator.h
-    src/viewmodel/parser/Evaluator.cpp
+    src/utils/parser/Token.h
+    src/utils/parser/Tokenizer.h
+    src/utils/parser/Tokenizer.cpp
+    src/utils/parser/Expression.h
+    src/utils/parser/Expression.cpp
+    src/utils/parser/Parser.h
+    src/utils/parser/Parser.cpp
+    src/utils/parser/Evaluator.h
+    src/utils/parser/Evaluator.cpp
     resources/resources.qrc
 )
 

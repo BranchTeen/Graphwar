@@ -1,5 +1,4 @@
-#include "PauseMenuPage.h"
-#include "viewmodel/SaveManager.h"
+#include "view/PauseMenuPage.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -7,8 +6,8 @@
 #include <QMessageBox>
 
 PauseMenuPage::PauseMenuPage(GameViewModel *vm, QWidget *parent)
-    : QWidget(parent), m_vm(vm) {
-
+    : QWidget(parent), m_vm(vm)
+{
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(40, 30, 40, 30);
     root->setSpacing(16);
@@ -48,6 +47,7 @@ void PauseMenuPage::refresh() {
 }
 
 void PauseMenuPage::rebuild() {
+    // 移除旧 layout / 控件
     if (m_slotsContainer->layout()) {
         QLayoutItem *item;
         while ((item = m_slotsContainer->layout()->takeAt(0)) != nullptr) {
@@ -61,8 +61,14 @@ void PauseMenuPage::rebuild() {
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(10);
 
-    for (int slot = 0; slot < SaveManager::kSlotCount; ++slot) {
-        SaveInfo info = SaveManager::slotInfo(slot);
+    // 通过 ViewModel 统一接口获取存档信息（不再直接调用 SaveManager）
+    int total = m_vm ? m_vm->slotCount() : 0;
+    QVector<SaveInfo> infos;
+    if (m_vm) infos = m_vm->slotInfos();
+
+    for (int slot = 0; slot < total; ++slot) {
+        SaveInfo info;
+        if (slot < infos.size()) info = infos[slot];
 
         auto *row = new QWidget(m_slotsContainer);
         auto *rowLayout = new QHBoxLayout(row);
@@ -98,13 +104,17 @@ void PauseMenuPage::rebuild() {
 
 void PauseMenuPage::saveTo(int slot) {
     if (!m_vm) return;
-    SaveInfo info = SaveManager::slotInfo(slot);
+    SaveInfo info;
+    auto infos = m_vm->slotInfos();
+    if (slot >= 0 && slot < infos.size()) info = infos[slot];
+
     if (info.exists) {
         auto ret = QMessageBox::question(this, "Overwrite?",
             QString("Slot %1 already exists. Overwrite?").arg(slot + 1),
             QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
         if (ret != QMessageBox::Yes) return;
     }
+
     bool ok = m_vm->saveToSlot(slot);
     if (!ok) {
         QMessageBox::warning(this, "Save failed", QString("Could not save to slot %1.").arg(slot + 1));
@@ -112,5 +122,5 @@ void PauseMenuPage::saveTo(int slot) {
     }
     rebuild();
     QMessageBox::information(this, "Saved", QString("Saved to slot %1.\n%2")
-        .arg(slot + 1).arg(SaveManager::slotPath(slot)));
+        .arg(slot + 1).arg(m_vm->slotPath(slot)));
 }

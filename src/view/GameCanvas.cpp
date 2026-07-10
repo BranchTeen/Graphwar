@@ -1,21 +1,12 @@
-#include "GameCanvas.h"
+#include "view/GameCanvas.h"
 #include <QPainter>
 #include <QPainterPath>
 #include <cmath>
 
 GameCanvas::GameCanvas(GameViewModel *vm, QWidget *parent)
-    : QWidget(parent) {
-    setViewModel(vm);
+    : QWidget(parent), m_vm(vm)
+{
     setMinimumSize(600, 400);
-}
-
-void GameCanvas::setViewModel(GameViewModel *vm) {
-    m_vm = vm;
-    if (m_vm) {
-        connect(m_vm, &GameViewModel::trajectoryUpdated, this, &GameCanvas::refresh);
-        connect(m_vm, &GameViewModel::phaseChanged, this, &GameCanvas::refresh);
-        connect(m_vm, &GameViewModel::turnChanged, this, &GameCanvas::refresh);
-    }
 }
 
 void GameCanvas::refresh() {
@@ -38,11 +29,11 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     m_oy = h / 2.0;
     m_scale = std::min(w, h) / 40.0;
 
-    // Background
+    // 背景
     p.fillRect(rect(), QColor(20, 20, 30));
 
-    // Grid lines (every 5 units, centered on origin)
-    if (m_vm->config().showGridLines) {
+    // 网格线
+    if (m_vm->showGridLines()) {
         p.setPen(QPen(QColor(35, 35, 50), 1));
         for (int gx = -20; gx <= 20; gx += 5)
             p.drawLine(worldToScreen(gx, -30), worldToScreen(gx, 30));
@@ -50,46 +41,47 @@ void GameCanvas::paintEvent(QPaintEvent *) {
             p.drawLine(worldToScreen(-30, gy), worldToScreen(30, gy));
     }
 
-    // Axes
+    // 坐标轴
     p.setPen(QPen(QColor(180, 180, 200), 2));
     auto ox = worldToScreen(0, 0);
     p.drawLine(QPointF(0, ox.y()), QPointF(w, ox.y()));
     p.drawLine(QPointF(ox.x(), 0), QPointF(ox.x(), h));
 
-    const auto &model = m_vm->model();
+    // 玩家方块 —— 通过 ViewModel 接口获取副本
+    int selIdx = m_vm->selectedSquareIndex();
+    int curPlayer = m_vm->currentPlayer();
 
-    // Draw squares
     for (int pl = 0; pl < 2; ++pl) {
-        const auto &player = model.players[pl];
-        for (int i = 0; i < player.squares.size(); ++i) {
-            const auto &sq = player.squares[i];
+        QColor playerColor = m_vm->playerColor(pl);
+        QVector<Square> squares = m_vm->playerSquares(pl);
+        for (int i = 0; i < squares.size(); ++i) {
+            const Square &sq = squares[i];
             auto tl = worldToScreen(sq.rect.cx - sq.rect.w / 2, sq.rect.cy + sq.rect.h / 2);
             auto br = worldToScreen(sq.rect.cx + sq.rect.w / 2, sq.rect.cy - sq.rect.h / 2);
             QRectF r(tl.x(), tl.y(), br.x() - tl.x(), br.y() - tl.y());
 
-            QColor c = player.color;
+            QColor c = playerColor;
             if (sq.destroyed) {
                 c = QColor(80, 80, 80, 120);
             } else {
                 c.setAlpha(160);
             }
             p.fillRect(r, c);
-            p.setPen(QPen(player.color.darker(130), 1.5));
+            p.setPen(QPen(playerColor.darker(130), 1.5));
             p.drawRect(r);
 
-            // Highlight selected square
-            if (pl == model.currentPlayer && i == model.selectedSquare && !sq.destroyed) {
+            // 选中方块高亮 + 坐标标签
+            if (pl == curPlayer && i == selIdx && !sq.destroyed) {
+                p.save();
                 p.setPen(QPen(Qt::white, 2, Qt::DashLine));
                 p.drawRect(r.adjusted(-2, -2, 2, 2));
 
-                if (m_vm->config().showCoordinates) {
-                    p.save();
+                if (m_vm->showCoordinates()) {
                     QString label = QString("(%1, %2)")
                         .arg(sq.rect.cx, 0, 'f', 2)
                         .arg(sq.rect.cy, 0, 'f', 2);
                     QFont f = p.font();
-                    f.setPointSize(10);
-                    f.setBold(true);
+                    f.setPointSize(10); f.setBold(true);
                     p.setFont(f);
 
                     QFontMetricsF fm(f);
@@ -97,9 +89,8 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                     qreal textH = fm.height();
                     QPointF labelPos(r.right() + 8, r.top() - textH / 2);
 
-                    if (labelPos.x() + textW + 6 > width()) {
+                    if (labelPos.x() + textW + 6 > width())
                         labelPos.setX(r.left() - textW - 14);
-                    }
                     if (labelPos.y() < 4) labelPos.setY(4);
                     if (labelPos.y() + textH + 4 > height()) labelPos.setY(height() - textH - 4);
 
@@ -107,31 +98,29 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                     p.setPen(Qt::NoPen);
                     p.setBrush(QColor(0, 0, 0, 180));
                     p.drawRoundedRect(bg, 4, 4);
-
                     p.setPen(Qt::white);
                     p.drawText(QRectF(labelPos.x(), labelPos.y(), textW, textH),
                                Qt::AlignLeft | Qt::AlignVCenter, label);
-                    p.restore();
                 }
+                p.restore();
             }
         }
     }
 
-    // Draw obstacles：灰色方块，被破坏的显示为虚线轮廓
-    for (const auto &ob : model.obstacles) {
+    // 障碍物 —— 通过 ViewModel 接口获取
+    QVector<Square> obstacles = m_vm->obstacles();
+    for (const auto &ob : obstacles) {
         auto tl = worldToScreen(ob.rect.cx - ob.rect.w / 2, ob.rect.cy + ob.rect.h / 2);
         auto br = worldToScreen(ob.rect.cx + ob.rect.w / 2, ob.rect.cy - ob.rect.h / 2);
         QRectF r(tl.x(), tl.y(), br.x() - tl.x(), br.y() - tl.y());
 
         if (ob.destroyed) {
-            // 被破坏：只画虚线轮廓，表示已经破坏的障碍物
             p.save();
             p.setPen(QPen(QColor(100, 100, 100), 1.5, Qt::DashLine));
             p.setBrush(Qt::NoBrush);
             p.drawRect(r);
             p.restore();
         } else {
-            // 完好：实心填充 + 深色边框
             p.save();
             p.setBrush(QColor(120, 120, 120, 200));
             p.setPen(QPen(QColor(60, 60, 60), 2));
@@ -140,70 +129,55 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         }
     }
 
-    // Draw history trajectories (dimmed)
-    p.setPen(QPen(QColor(150, 150, 170, 60), 1.5));
-    for (const auto &traj : model.history) {
-        if (traj.size() < 2) continue;
+    // 历史轨迹（上一轮）
+    QVector<QPointF> history = m_vm->historyTrajectory();
+    if (history.size() >= 2) {
+        p.setPen(QPen(QColor(150, 150, 170, 60), 1.5));
         QPainterPath path;
-        auto sp = worldToScreen(traj[0].x(), traj[0].y());
-        path.moveTo(sp);
-        for (int i = 1; i < traj.size(); ++i) {
-            sp = worldToScreen(traj[i].x(), traj[i].y());
-            path.lineTo(sp);
-        }
+        path.moveTo(worldToScreen(history[0].x(), history[0].y()));
+        for (int i = 1; i < history.size(); ++i)
+            path.lineTo(worldToScreen(history[i].x(), history[i].y()));
         p.drawPath(path);
     }
 
-    // Draw current trajectory
-    if (!model.trajectory.isEmpty()) {
+    // 当前轨迹
+    QVector<QPointF> traj = m_vm->trajectory();
+    if (!traj.isEmpty()) {
         QPainterPath path;
-        auto sp = worldToScreen(model.trajectory[0].x(), model.trajectory[0].y());
-        path.moveTo(sp);
-        for (int i = 1; i < model.trajectory.size(); ++i) {
-            sp = worldToScreen(model.trajectory[i].x(), model.trajectory[i].y());
-            path.lineTo(sp);
-        }
-        QColor trajColor = (model.currentPlayer == 0) ? QColor(100, 180, 255) : QColor(255, 120, 100);
+        path.moveTo(worldToScreen(traj[0].x(), traj[0].y()));
+        for (int i = 1; i < traj.size(); ++i)
+            path.lineTo(worldToScreen(traj[i].x(), traj[i].y()));
+        QColor trajColor = (curPlayer == 0) ? QColor(100, 180, 255) : QColor(255, 120, 100);
         p.setPen(QPen(trajColor, 2.5));
         p.drawPath(path);
 
-        // Bullet head
-        if (!model.trajectory.isEmpty()) {
-            auto head = model.trajectory.back();
-            auto sh = worldToScreen(head.x(), head.y());
-            p.setBrush(trajColor);
-            p.setPen(Qt::NoPen);
-            p.drawEllipse(sh, 6, 6);
-        }
+        // 子弹头
+        auto head = traj.back();
+        auto sh = worldToScreen(head.x(), head.y());
+        p.setBrush(trajColor);
+        p.setPen(Qt::NoPen);
+        p.drawEllipse(sh, 6, 6);
     }
 
-    // Turn & phase info
+    // 回合与玩家信息显示
     p.setPen(Qt::white);
     QFont font = p.font();
     font.setPointSize(12);
     p.setFont(font);
     QString info = QString("P1: %1  |  Round %2  |  P2: %3")
-        .arg(model.players[0].aliveCount())
-        .arg(model.roundNumber)
-        .arg(model.players[1].aliveCount());
+        .arg(m_vm->aliveCount(0))
+        .arg(m_vm->roundNumber())
+        .arg(m_vm->aliveCount(1));
     p.drawText(QRect(10, 10, w - 20, 30), Qt::AlignLeft, info);
 
-    // 游戏结束时：在画布中央绘制 GAME OVER 文字作为视觉兜底
-    if (model.phase == GamePhase::GameOver) {
+    // 游戏结束遮罩
+    if (m_vm->isGameOver()) {
         p.save();
         p.setPen(QPen(QColor(74, 170, 255), 3));
         QFont big = p.font();
-        big.setPointSize(48);
-        big.setBold(true);
+        big.setPointSize(48); big.setBold(true);
         p.setFont(big);
         p.drawText(rect(), Qt::AlignCenter, "GAME OVER");
-        p.setPen(Qt::white);
-        QFont small = p.font();
-        small.setPointSize(14);
-        small.setBold(false);
-        p.setFont(small);
-        p.drawText(rect().translated(0, 50), Qt::AlignCenter,
-                   "(A dialog should also pop up with a Play Again button)");
         p.restore();
     }
 }

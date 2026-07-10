@@ -3,9 +3,15 @@
 #include <QTimer>
 #include <QString>
 #include "model/GameModel.h"
-#include "model/GameConfig.h"
-#include "utils/Geometry.h"
+#include "model/SaveInfo.h"
 
+// GameViewModel：MVVM 的 ViewModel 层（薄协调者）
+// - 持有一个 GameModel 实例（真正的业务逻辑所在）
+// - 向 View 暴露细粒度的只读访问接口（通过转发到 m_model）
+// - 提供给 View 调用的 slots（内部转发到 m_model）
+// - 桥接 m_model 的 signals → ViewModel 的 signals → View 订阅
+// - 管理存档槽读写（调用 model/SaveManager + model 的 toJson/fromJson）
+// View 层不应直接 #include "model/GameModel.h"，而通过 GameViewModel 间接访问它
 class GameViewModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(int currentPlayer READ currentPlayer NOTIFY turnChanged)
@@ -19,37 +25,64 @@ class GameViewModel : public QObject {
 public:
     explicit GameViewModel(QObject *parent = nullptr);
 
-    int currentPlayer() const { return m_model.currentPlayer; }
-    int roundNumber() const { return m_model.roundNumber; }
-    int availablePoints() const { return m_model.availablePoints(); }
-    int costPreview() const { return m_costPreview; }
-    GamePhase phase() const { return m_model.phase; }
-    QString message() const { return m_message; }
-    bool paused() const { return m_paused; }
+    // ===== 基础状态访问器（供 View 只读访问，转发到 Model）=====
+    int currentPlayer() const;
+    int roundNumber() const;
+    int availablePoints() const;
+    int costPreview() const;
+    GamePhase phase() const;
+    QString message() const;
+    bool paused() const;
 
-    const GameModel &model() const { return m_model; }
+    // ===== 玩家 / 方块信息（细粒度，从 Model 查询）=====
+    QColor playerColor(int player) const;
+    int aliveCount(int player) const;
+    int totalSquaresPerPlayer() const;
+    int selectedSquareIndex() const;
 
-    void setConfig(const GameConfig &cfg) { m_config = cfg; }
-    const GameConfig &config() const { return m_config; }
+    // 返回快照副本 —— 保证 View 无法修改 Model 内部状态
+    QVector<Square> playerSquares(int player) const;
+    QVector<Square> obstacles() const;
+
+    // ===== 轨迹信息（从 Model 查询）=====
+    QVector<QPointF> trajectory() const;
+    QVector<QPointF> historyTrajectory() const;
+
+    // ===== 游戏状态语义方法 =====
+    bool isGameOver() const;
+    bool isWaitingInput() const;
+    bool isAnimating() const;
+
+    // ===== 配置 =====
+    GameConfig configSnapshot() const;
+    const GameConfig &config() const;
+    bool showGridLines() const;
+    bool showCoordinates() const;
+
+    // ===== 存档管理（统一入口）=====
+    int slotCount() const;
+    QVector<SaveInfo> slotInfos() const;
+    QString slotPath(int slot) const;
+    bool saveToSlot(int slot);
+    bool loadFromSlot(int slot);
+    bool deleteSlot(int slot);
 
 public slots:
     void newGame();
     void updateCostPreview(const QString &expr);
     void launch(const QString &expr);
     void nextTurn();
-    void advanceAnimation();
 
-    // 暂停/恢复
+    // 暂停/恢复（转发到 Model）
     void pause();
     void resume();
     void togglePause();
 
-    // 存档/读档/删除；返回是否成功
-    bool saveToSlot(int slot);
-    bool loadFromSlot(int slot);
-    bool deleteSlot(int slot);
+    // 应用新的配置（新一局生效）
+    void setConfig(const GameConfig &cfg);
 
 signals:
+    // === 与 GameModel 的 signals 同名，用于桥接给 View ===
     void turnChanged(int player);
     void roundChanged(int round);
     void pointsChanged(int points);
@@ -60,30 +93,10 @@ signals:
     void trajectoryUpdated();
     void animationFinished();
     void pausedChanged(bool paused);
-    void saveResult(int slot, bool ok, const QString &info); // 存档操作完成
-    void gameOver(const QString &winnerInfo);                // 游戏结束：UI 弹出"重新开始"按钮
+    void saveResult(int slot, bool ok, const QString &info);
+    void gameOver(const QString &winnerInfo);
 
 private:
-    void generateSquares(int count, const QColor &p1Color, const QColor &p2Color);
-    void generateObstacles(int count, double size);
-    void pickRandomSquare();
-    bool checkHit(const QPointF &pt) const;
-
-    // JSON 序列化/反序列化整个模型 + 运行状态
-    QString toJson() const;
-    bool fromJson(const QString &text);
-    // 加载后发出 UI 刷新信号
-    void emitAllState();
-
-    GameModel m_model;
-    GameConfig m_config;
-    QTimer m_animTimer;
-    QString m_currentExpr;
-    double m_animX = 0;
-    double m_animStep = 0.15;
-    int m_costPreview = 0;
-    QString m_message;
-    double m_constAdjust = 0;
-    bool m_hasHit = false;
-    bool m_paused = false;
+    GameModel *m_model = nullptr;   // 业务逻辑 + 状态所在
+    int m_costPreview = 0;           // UI 输入预览消耗点数（属于 ViewModel 状态）
 };

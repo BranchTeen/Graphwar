@@ -57,6 +57,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(m_vm, &GameViewModel::pointsChanged, this, [=](int pts) {
         pointsLabel->setText(QString("Points: %1").arg(pts));
     });
+    connect(m_vm, &GameViewModel::trajectoryUpdated, m_canvas, QOverload<>::of(&QWidget::update));
+    connect(m_vm, &GameViewModel::phaseChanged,    m_canvas, QOverload<>::of(&QWidget::update));
+    connect(m_vm, &GameViewModel::turnChanged,     m_canvas, QOverload<>::of(&QWidget::update));
+    connect(m_vm, &GameViewModel::gameOver,        m_canvas, QOverload<>::of(&QWidget::update));
 
     // Start page
     auto *startPage = new QWidget(this);

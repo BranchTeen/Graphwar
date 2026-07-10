@@ -64,31 +64,46 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     // Start page
     auto *startPage = new QWidget(this);
-    startPage->setStyleSheet("background:#141420;");
+    startPage->setObjectName("startPage");
+    startPage->setStyleSheet(
+        "QWidget#startPage { border-image: url(:/start_background.png) 0 0 0 0 stretch stretch; }"
+        "QWidget#startPage QLabel { background: rgba(0, 0, 0, 140); border-radius: 12px; }"
+        "QWidget#startPage QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QWidget#startPage QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+        "}"
+        "QWidget#startPage QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
     auto *startLayout = new QVBoxLayout(startPage);
     startLayout->setAlignment(Qt::AlignCenter);
-    startLayout->setSpacing(16);
+    startLayout->setSpacing(20);
 
     auto *titleLabel = new QLabel("GRAPH WAR", this);
-    titleLabel->setStyleSheet("color:#4af;font-size:64px;font-weight:bold;padding:20px;");
+    titleLabel->setStyleSheet(
+        "color: white; font-size: 72px; font-weight: bold;"
+        "padding: 20px 40px; letter-spacing: 4px;"
+        "background: rgba(0, 0, 0, 140); border-radius: 16px;"
+    );
     titleLabel->setAlignment(Qt::AlignCenter);
 
     auto *subtitleLabel = new QLabel("Two players, one curve. Fire functions at each other!", this);
-    subtitleLabel->setStyleSheet("color:#aaa;font-size:16px;padding-bottom:20px;");
+    subtitleLabel->setStyleSheet(
+        "color: #e8e8ff; font-size: 18px; padding: 10px 24px; border-radius: 10px;"
+        "background: rgba(0, 0, 0, 120);"
+    );
     subtitleLabel->setAlignment(Qt::AlignCenter);
 
     auto *newGameBtn = new QPushButton("NEW GAME", this);
-    newGameBtn->setStyleSheet(
-        "QPushButton { background: #2a7; color: white; font-size: 22px; font-weight: bold;"
-        "padding: 15px 60px; border-radius: 8px; }"
-        "QPushButton:hover { background: #3c9; }");
     newGameBtn->setCursor(Qt::PointingHandCursor);
 
-    auto *loadGameBtn = new QPushButton("Load / Manage Saves", this);
-    loadGameBtn->setStyleSheet(
-        "QPushButton { background: #384; color: white; font-size: 18px;"
-        "padding: 12px 50px; border-radius: 8px; }"
-        "QPushButton:hover { background: #4a5; }");
+    auto *loadGameBtn = new QPushButton("LOAD GAME", this);
     loadGameBtn->setCursor(Qt::PointingHandCursor);
 
     startLayout->addStretch();

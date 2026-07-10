@@ -14,11 +14,17 @@ class ConfigPage : public QWidget {
 public:
     explicit ConfigPage(QWidget *parent = nullptr);
 
+    // 根据当前 GameConfig 回显表单字段（进入 Config 页或存档加载后调用）
+    void refresh(const GameConfig &cfg);
+
 signals:
     void configSaved(const GameConfig &config);
     void backToStart();
 
 private:
+    // 在 s_colors 中查找与传入颜色 RGB 最接近的 index
+    static int matchColorIndex(const QColor &c);
+
     void build();
     QWidget *createSwatchRow(int player);
     void selectSwatch(int player, int index);

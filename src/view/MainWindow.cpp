@@ -87,23 +87,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         "QPushButton:hover { background: #4a5; }");
     loadGameBtn->setCursor(Qt::PointingHandCursor);
 
-    auto *configBtn = new QPushButton("Config", this);
-    configBtn->setStyleSheet(
-        "QPushButton { background: #364; color: white; font-size: 18px;"
-        "padding: 12px 50px; border-radius: 8px; }"
-        "QPushButton:hover { background: #485; }");
-    configBtn->setCursor(Qt::PointingHandCursor);
-
     startLayout->addStretch();
     startLayout->addWidget(titleLabel);
     startLayout->addWidget(subtitleLabel);
     startLayout->addWidget(newGameBtn, 0, Qt::AlignCenter);
-    startLayout->addWidget(configBtn, 0, Qt::AlignCenter);
     startLayout->addWidget(loadGameBtn, 0, Qt::AlignCenter);
     startLayout->addStretch();
 
-    connect(newGameBtn, &QPushButton::clicked, this, &MainWindow::startNewGame);
-    connect(configBtn, &QPushButton::clicked, this, &MainWindow::goToConfig);
+    // NEW GAME 不再直接进入游戏，而是先进入 Config 页
+    // 用户在 Config 页点击"START GAME"后再实际开始游戏
+    connect(newGameBtn, &QPushButton::clicked, this, &MainWindow::goToConfig);
     connect(loadGameBtn, &QPushButton::clicked, this, &MainWindow::goToSaveManager);
 
     // Save manager page
@@ -114,9 +107,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     // Config page
     m_configPage = new ConfigPage(this);
     connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
+    // "Save" 按钮现在的语义是"进入游戏"：先把配置应用到 VM，再启动新游戏
     connect(m_configPage, &ConfigPage::configSaved, this, [this](const GameConfig &cfg) {
         m_vm->setConfig(cfg);
-        showPage(PageStart);
+        startNewGame();
     });
 
     // Pause page
@@ -164,6 +158,9 @@ void MainWindow::startNewGame() {
 }
 
 void MainWindow::goToConfig() {
+    // 每次进入 Config 页面时，以当前 vm 中的 GameConfig 回显表单
+    // —— 这样用户可以在存档加载后看到保存时的设置（含 Show grid lines 等）
+    if (m_vm && m_configPage) m_configPage->refresh(m_vm->config());
     showPage(PageConfig);
 }
 

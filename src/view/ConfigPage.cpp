@@ -21,6 +21,57 @@ ConfigPage::ConfigPage(QWidget *parent) : QWidget(parent) {
     build();
 }
 
+int ConfigPage::matchColorIndex(const QColor &c) {
+    // 按 RGB（不比较 alpha）在 s_colors 里找最接近的一个，供刷新回显使用
+    int bestIdx = 0;
+    int bestDist = INT_MAX;
+    for (int i = 0; i < s_colors.size(); ++i) {
+        int dr = s_colors[i].red()   - c.red();
+        int dg = s_colors[i].green() - c.green();
+        int db = s_colors[i].blue()  - c.blue();
+        int dist = dr*dr + dg*dg + db*db;
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+    return bestIdx;
+}
+
+void ConfigPage::refresh(const GameConfig &cfg) {
+    // 根据传入的 GameConfig 回显表单字段（让用户可以在存档加载后看到当时的设置）
+    if (m_squaresSpin)      m_squaresSpin->setValue(cfg.squaresPerPlayer);
+    if (m_obstacleCountSpin) m_obstacleCountSpin->setValue(cfg.obstacleCount);
+    if (m_obstacleSizeSpin) m_obstacleSizeSpin->setValue(cfg.obstacleSize);
+    if (m_coordCheck)       m_coordCheck->setChecked(cfg.showCoordinates);
+    if (m_gridCheck)        m_gridCheck->setChecked(cfg.showGridLines);
+
+    // 颜色 swatch：根据传入颜色找到最接近的 s_colors index，并高亮
+    m_p1Index = matchColorIndex(cfg.player1Color);
+    m_p2Index = matchColorIndex(cfg.player2Color);
+    // 两个颜色若相同，选相邻的不同颜色（避免 P1 == P2）
+    if (m_p1Index == m_p2Index) {
+        m_p2Index = (m_p1Index + 1) % s_colors.size();
+    }
+
+    // 重绘两个 swatch 行的高亮样式
+    for (int i = 0; i < m_p1Swatches.size(); ++i) {
+        const QColor &c = s_colors[i];
+        QString border = (i == m_p1Index)
+            ? "border:2px solid white;border-radius:4px;"
+            : "border:1px solid #666;border-radius:4px;";
+        m_p1Swatches[i]->setStyleSheet(
+            QString("background:rgba(%1,%2,%3,%4);%5")
+                .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha()).arg(border));
+    }
+    for (int i = 0; i < m_p2Swatches.size(); ++i) {
+        const QColor &c = s_colors[i];
+        QString border = (i == m_p2Index)
+            ? "border:2px solid white;border-radius:4px;"
+            : "border:1px solid #666;border-radius:4px;";
+        m_p2Swatches[i]->setStyleSheet(
+            QString("background:rgba(%1,%2,%3,%4);%5")
+                .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha()).arg(border));
+    }
+}
+
 void ConfigPage::build() {
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(60, 40, 60, 40);
@@ -98,9 +149,9 @@ void ConfigPage::build() {
     connect(backBtn, &QPushButton::clicked, this, &ConfigPage::backToStart);
     btnLayout->addWidget(backBtn);
 
-    auto *startBtn = new QPushButton("Save", this);
+    auto *startBtn = new QPushButton("START GAME", this);
     startBtn->setStyleSheet(
-        "QPushButton{background:#2a7;color:white;font-size:18px;font-weight:bold;padding:12px 40px;border-radius:6px;}"
+        "QPushButton{background:#2a7;color:white;font-size:22px;font-weight:bold;padding:14px 50px;border-radius:8px;}"
         "QPushButton:hover{background:#3c9;}");
     connect(startBtn, &QPushButton::clicked, this, [this]() {
         if (m_p1Index == m_p2Index) {

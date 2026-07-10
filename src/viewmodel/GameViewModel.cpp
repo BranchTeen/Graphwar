@@ -377,6 +377,27 @@ QString GameViewModel::toJson() const {
     root["message"] = m_message;
     root["currentExpr"] = m_currentExpr;
 
+    // Game Settings（包括 Show grid lines、Show square coordinates、颜色、方块/障碍物数量等）
+    // —— 原先未保存；现在一并写入，保证存档加载后配置一致
+    {
+        QJsonObject cfg;
+        cfg["squaresPerPlayer"] = m_config.squaresPerPlayer;
+        cfg["obstacleCount"] = m_config.obstacleCount;
+        cfg["obstacleSize"] = m_config.obstacleSize;
+        // 颜色以 rgba 四个 int 存储，避免 QColor("#AARRGGBB") 解析不可靠的问题
+        cfg["player1Color_r"] = m_config.player1Color.red();
+        cfg["player1Color_g"] = m_config.player1Color.green();
+        cfg["player1Color_b"] = m_config.player1Color.blue();
+        cfg["player1Color_a"] = m_config.player1Color.alpha();
+        cfg["player2Color_r"] = m_config.player2Color.red();
+        cfg["player2Color_g"] = m_config.player2Color.green();
+        cfg["player2Color_b"] = m_config.player2Color.blue();
+        cfg["player2Color_a"] = m_config.player2Color.alpha();
+        cfg["showCoordinates"] = m_config.showCoordinates;
+        cfg["showGridLines"] = m_config.showGridLines;
+        root["config"] = cfg;
+    }
+
     for (int p = 0; p < 2; ++p) {
         QJsonArray arr;
         for (const auto &sq : m_model.players[p].squares) {
@@ -441,6 +462,38 @@ bool GameViewModel::fromJson(const QString &text) {
 
     m_message = root.value("message").toString("Loaded game");
     m_currentExpr = root.value("currentExpr").toString();
+
+    // Game Settings：读取 JSON 中的 config 并应用到 m_config & m_model.players[x].color
+    // —— 缺失字段保留为当前 m_config 的值（兼容旧存档）
+    {
+        QJsonValue cv = root.value("config");
+        if (cv.isObject()) {
+            QJsonObject c = cv.toObject();
+            if (c.contains("squaresPerPlayer"))
+                m_config.squaresPerPlayer = c.value("squaresPerPlayer").toInt(m_config.squaresPerPlayer);
+            if (c.contains("obstacleCount"))
+                m_config.obstacleCount = c.value("obstacleCount").toInt(m_config.obstacleCount);
+            if (c.contains("obstacleSize"))
+                m_config.obstacleSize = c.value("obstacleSize").toDouble(m_config.obstacleSize);
+            if (c.contains("showCoordinates"))
+                m_config.showCoordinates = c.value("showCoordinates").toBool(m_config.showCoordinates);
+            if (c.contains("showGridLines"))
+                m_config.showGridLines = c.value("showGridLines").toBool(m_config.showGridLines);
+
+            // 颜色：按 rgba 四个 int 恢复
+            int r1 = c.value("player1Color_r").toInt(m_config.player1Color.red());
+            int g1 = c.value("player1Color_g").toInt(m_config.player1Color.green());
+            int b1 = c.value("player1Color_b").toInt(m_config.player1Color.blue());
+            int a1 = c.value("player1Color_a").toInt(m_config.player1Color.alpha());
+            m_config.player1Color.setRgb(r1, g1, b1, a1);
+
+            int r2 = c.value("player2Color_r").toInt(m_config.player2Color.red());
+            int g2 = c.value("player2Color_g").toInt(m_config.player2Color.green());
+            int b2 = c.value("player2Color_b").toInt(m_config.player2Color.blue());
+            int a2 = c.value("player2Color_a").toInt(m_config.player2Color.alpha());
+            m_config.player2Color.setRgb(r2, g2, b2, a2);
+        }
+    }
 
     for (int p = 0; p < 2; ++p) {
         QJsonValue v = root.value(p == 0 ? "player0" : "player1");

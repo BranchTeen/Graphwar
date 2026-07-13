@@ -12,6 +12,8 @@ GraphwarApp::GraphwarApp()
     m_main_wnd.set_state(state);
     m_main_wnd.set_cost_preview_ptr(&m_view_model.costPreview());
     m_main_wnd.get_canvas()->set_state(state);
+    m_main_wnd.get_save_page()->set_state(state);
+    m_main_wnd.get_pause_page()->set_state(state);
 
     // === Wire commands ===
     m_main_wnd.set_new_game_command(m_view_model.get_new_game_command());

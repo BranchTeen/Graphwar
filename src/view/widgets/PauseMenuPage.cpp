@@ -1,5 +1,4 @@
 #include "PauseMenuPage.h"
-#include "common/SaveManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -43,8 +42,8 @@ void PauseMenuPage::buildSaveSlots() {
     slotsLayout->setSpacing(10);
     m_slotsWidget->setStyleSheet("background:#1a1a2a;border-radius:8px;");
 
-    int total = SaveManager::kSlotCount;
-    auto infos = SaveManager::slotInfos();
+    int total = m_state ? m_state->slotCount : 3;
+    auto infos = m_state ? m_state->slotInfos : QVector<SaveInfo>();
 
     for (int slot = 0; slot < total; ++slot) {
         SaveInfo info;
@@ -105,7 +104,7 @@ void PauseMenuPage::onBackClicked() {
 
 void PauseMenuPage::onSaveClicked(int slot) {
     SaveInfo info;
-    auto infos = SaveManager::slotInfos();
+    auto infos = m_state ? m_state->slotInfos : QVector<SaveInfo>();
     if (slot >= 0 && slot < infos.size()) info = infos[slot];
 
     if (info.exists) {
@@ -116,6 +115,5 @@ void PauseMenuPage::onSaveClicked(int slot) {
     }
 
     if (m_saveSlotCmd) m_saveSlotCmd(slot);
-    QMessageBox::information(this, "Saved", QString("Saved to slot %1.\n%2")
-        .arg(slot + 1).arg(SaveManager::slotPath(slot)));
+    QMessageBox::information(this, "Saved", QString("Saved to slot %1.").arg(slot + 1));
 }

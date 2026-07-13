@@ -6,6 +6,7 @@
 #include <QColor>
 class QTimer;
 #include "Player.h"
+#include "common/SaveInfo.h"
 #include "common/GamePhase.h"
 #include "common/GameConfig.h"
 #include "common/Square.h"
@@ -69,6 +70,14 @@ public:
     // ===== 序列化（Model 层自序列化 + 反序列化） =====
     QString toJson() const;
     bool fromJson(const QString &text);
+
+    // ===== 存档管理（通过 SaveManager） =====
+    bool saveToSlot(int slot);
+    bool loadFromSlot(int slot);
+    bool deleteSlot(int slot);
+    static int slotCount();
+    static SaveInfo slotInfo(int slot);
+    static QVector<SaveInfo> slotInfos();
 
 signals:
     void turnChanged(int player);

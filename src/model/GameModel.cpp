@@ -1,4 +1,5 @@
 #include "GameModel.h"
+#include "SaveManager.h"
 #include "model/parser/Tokenizer.h"
 #include "model/parser/Evaluator.h"
 #include <QRandomGenerator>
@@ -526,4 +527,32 @@ bool GameModel::fromJson(const QString &text) {
     }
 
     return true;
+}
+
+bool GameModel::saveToSlot(int slot) {
+    QString json = toJson();
+    return SaveManager::writeSlot(slot, json);
+}
+
+bool GameModel::loadFromSlot(int slot) {
+    bool ok = false;
+    QString text = SaveManager::readSlot(slot, &ok);
+    if (!ok) return false;
+    return fromJson(text);
+}
+
+bool GameModel::deleteSlot(int slot) {
+    return SaveManager::deleteSlot(slot);
+}
+
+int GameModel::slotCount() {
+    return SaveManager::kSlotCount;
+}
+
+SaveInfo GameModel::slotInfo(int slot) {
+    return SaveManager::slotInfo(slot);
+}
+
+QVector<SaveInfo> GameModel::slotInfos() {
+    return SaveManager::slotInfos();
 }

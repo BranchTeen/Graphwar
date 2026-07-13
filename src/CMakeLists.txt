@@ -4,7 +4,7 @@ set(SOURCES
     common/frame.cpp
     model/GameModel.cpp
     common/SaveInfo.cpp
-    common/SaveManager.cpp
+    model/SaveManager.cpp
     model/parser/Tokenizer.cpp
     model/parser/Expression.cpp
     model/parser/Parser.cpp
@@ -14,9 +14,9 @@ set(SOURCES
     viewmodel/commands/NewGameCommand.cpp
     viewmodel/commands/LaunchCommand.cpp
     viewmodel/commands/UpdateCostPreviewCommand.cpp
+    viewmodel/commands/NextTurnCommand.cpp
     viewmodel/commands/PauseCommand.cpp
     viewmodel/commands/ResumeCommand.cpp
-    viewmodel/commands/NextTurnCommand.cpp
     viewmodel/commands/SetConfigCommand.cpp
     viewmodel/commands/SaveSlotCommand.cpp
     viewmodel/commands/LoadSlotCommand.cpp

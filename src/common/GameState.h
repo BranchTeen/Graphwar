@@ -24,4 +24,6 @@ struct GameState {
     bool gameOver = false;
     bool paused = false;
     int aliveCount[2] = {0, 0};
+    QVector<SaveInfo> slotInfos;
+    int slotCount = 0;
 };

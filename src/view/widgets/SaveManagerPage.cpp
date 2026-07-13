@@ -1,5 +1,4 @@
 #include "SaveManagerPage.h"
-#include "common/SaveManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -37,8 +36,8 @@ void SaveManagerPage::buildSlots() {
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(12);
 
-    int total = SaveManager::kSlotCount;
-    auto infos = SaveManager::slotInfos();
+    int total = m_state ? m_state->slotCount : 3;
+    auto infos = m_state ? m_state->slotInfos : QVector<SaveInfo>();
 
     for (int slot = 0; slot < total; ++slot) {
         SaveInfo info;

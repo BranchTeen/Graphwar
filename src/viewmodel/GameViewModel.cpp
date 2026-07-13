@@ -1,6 +1,5 @@
 #include "GameViewModel.h"
 #include <QObject>
-#include "common/SaveManager.h"
 #include "common/property_ids.h"
 
 GameViewModel::GameViewModel() {
@@ -35,6 +34,8 @@ void GameViewModel::syncState() {
     m_state.paused = m_model->paused();
     m_state.aliveCount[0] = m_model->aliveCount(0);
     m_state.aliveCount[1] = m_model->aliveCount(1);
+    m_state.slotInfos = m_model->slotInfos();
+    m_state.slotCount = m_model->slotCount();
 }
 
 void GameViewModel::forwardModelSignals() {

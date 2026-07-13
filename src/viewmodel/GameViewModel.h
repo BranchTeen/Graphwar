@@ -1,33 +1,33 @@
 #pragma once
-#include <QObject>
-#include <QString>
+#include "common/frame.h"
 #include "model/GameModel.h"
 #include "model/SaveInfo.h"
-#include "common/EventBus.h"
 
-class GameViewModel : public QObject {
-    Q_OBJECT
+class GameViewModel : public PropertyTrigger {
 public:
-    explicit GameViewModel(QObject *parent = nullptr);
-    ~GameViewModel();
+    GameViewModel();
+    GameViewModel(const GameViewModel&) = delete;
+    ~GameViewModel() noexcept;
 
-private slots:
-    void onCmdNewGame();
-    void onCmdLaunch(const QString &expr);
-    void onCmdUpdateCostPreview(const QString &expr);
-    void onCmdNextTurn();
-    void onCmdPause();
-    void onCmdResume();
-    void onCmdTogglePause();
-    void onCmdSetConfig(const GameConfig &cfg);
-    void onCmdSaveToSlot(int slot);
-    void onCmdLoadFromSlot(int slot);
-    void onCmdDeleteSlot(int slot);
+    GameViewModel& operator=(const GameViewModel&) = delete;
+
+    const GameModel* get_model() const noexcept { return m_model; }
+
+    std::function<void()> get_new_game_command();
+    std::function<void(const QString&)> get_launch_command();
+    std::function<void(const QString&)> get_update_cost_preview_command();
+    std::function<void()> get_next_turn_command();
+    std::function<void()> get_pause_command();
+    std::function<void()> get_resume_command();
+    std::function<void(const GameConfig&)> get_set_config_command();
+    std::function<void(int)> get_save_slot_command();
+    std::function<void(int)> get_load_slot_command();
+    std::function<void(int)> get_delete_slot_command();
+
+    int costPreview() const noexcept { return m_costPreview; }
 
 private:
     void forwardModelSignals();
-    void registerGetters();
-    void connectCommands();
 
     GameModel *m_model = nullptr;
     int m_costPreview = 0;

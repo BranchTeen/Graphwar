@@ -2,6 +2,7 @@
 #include <QString>
 #include <QStringList>
 #include <QDateTime>
+#include <QVector>
 #include "SaveInfo.h"
 
 // SaveManager：MVVM Model 层的存档管理组件
@@ -23,6 +24,7 @@ public:
 
     // 元信息（供 UI 刷新用）
     static SaveInfo slotInfo(int slot);
+    static QVector<SaveInfo> slotInfos();
 
     // 删除
     static bool deleteSlot(int slot);

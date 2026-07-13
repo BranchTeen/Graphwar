@@ -58,6 +58,13 @@ SaveInfo SaveManager::slotInfo(int slot) {
     return info;
 }
 
+QVector<SaveInfo> SaveManager::slotInfos() {
+    QVector<SaveInfo> result;
+    for (int slot = 0; slot < kSlotCount; ++slot)
+        result.append(slotInfo(slot));
+    return result;
+}
+
 bool SaveManager::deleteSlot(int slot) {
     QFile f(slotPath(slot));
     if (!f.exists()) return true;

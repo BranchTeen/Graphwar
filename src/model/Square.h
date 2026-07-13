@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/Geometry.h"
+#include "common/Geometry.h"
 
 struct Square {
     Rect rect;

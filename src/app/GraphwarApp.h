@@ -1,6 +1,6 @@
 #pragma once
-#include "../view/MainWindow.h"
-#include "../viewmodel/GameViewModel.h"
+#include "view/MainWindow.h"
+#include "viewmodel/GameViewModel.h"
 
 class GraphwarApp {
 public:
@@ -10,7 +10,7 @@ public:
 
     GraphwarApp& operator=(const GraphwarApp&) = delete;
 
-    void show_main_window();
+    void show_main_window() { m_main_wnd.show(); }
 
 private:
     GameViewModel m_view_model;

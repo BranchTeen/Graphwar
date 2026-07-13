@@ -1,0 +1,12 @@
+
+#ifndef __PROPERTY_IDS_H__
+#define __PROPERTY_IDS_H__
+
+enum {
+	PROP_ID_BOOK_SERIAL = 1,
+	PROP_ID_BOOK_NAME,
+	PROP_ID_BOOK_SUMMARY,
+	PROP_ID_BOOK_PRICE
+};
+
+#endif

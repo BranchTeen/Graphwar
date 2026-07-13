@@ -1,14 +1,22 @@
-#include "MainWindow.h"
-#include <QVBoxLayout>
+#include "view/MainWindow.h"
+#include "viewmodel/GameViewModel.h"
+#include "common/property_ids.h"
+#include "widgets/GameCanvas.h"
+#include "widgets/FunctionInput.h"
+#include "widgets/ConfigPage.h"
+#include "widgets/SaveManagerPage.h"
+#include "widgets/PauseMenuPage.h"
+
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QLabel>
-#include <QKeyEvent>
 #include <QPushButton>
+#include <QKeyEvent>
+#include <QTimer>
 #include <QDialog>
 #include <QFont>
-#include "viewmodel/GameViewModel.h"
 
-MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent), m_vm(vm) {
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Graphwar");
     resize(900, 700);
     setStyleSheet("background:#0f0f1a;color:#ddd;");
@@ -44,21 +52,6 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
     gameLayout->insertWidget(0, topBar);
     gameLayout->addWidget(m_canvas, 1);
     gameLayout->addWidget(m_input);
-
-    auto &bus = EventBus::instance();
-    connect(&bus, &EventBus::evtTurnChanged, this, [this](int) {
-        updateTopBarColors();
-    });
-    connect(&bus, &EventBus::evtRoundChanged, this, [=](int r) {
-        roundLabel->setText(QString("Round %1").arg(r));
-    });
-    connect(&bus, &EventBus::evtPointsChanged, this, [=](int pts) {
-        pointsLabel->setText(QString("Points: %1").arg(pts));
-    });
-    connect(&bus, &EventBus::evtTrajectoryUpdated, m_canvas, QOverload<>::of(&QWidget::update));
-    connect(&bus, &EventBus::evtPhaseChanged,      m_canvas, QOverload<>::of(&QWidget::update));
-    connect(&bus, &EventBus::evtTurnChanged,       m_canvas, QOverload<>::of(&QWidget::update));
-    connect(&bus, &EventBus::evtGameOver,          m_canvas, QOverload<>::of(&QWidget::update));
 
     auto *startPage = new QWidget(this);
     startPage->setObjectName("startPage");
@@ -99,7 +92,6 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
 
     auto *newGameBtn = new QPushButton("NEW GAME", this);
     newGameBtn->setCursor(Qt::PointingHandCursor);
-
     auto *loadGameBtn = new QPushButton("LOAD GAME", this);
     loadGameBtn->setCursor(Qt::PointingHandCursor);
 
@@ -115,29 +107,16 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
 
     m_savePage = new SaveManagerPage(this);
     connect(m_savePage, &SaveManagerPage::backRequested, this, &MainWindow::backToStart);
-    connect(&bus, &EventBus::evtSaveResult, this, [this](int slot, bool ok, const QString &info) {
-        if (ok && info == "Loaded") onGameLoaded();
-    });
 
     m_configPage = new ConfigPage(this);
     connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
     connect(m_configPage, &ConfigPage::configSaved, this, [this](const GameConfig &cfg) {
-        EventBus::instance().cmdSetConfig(cfg);
+        if (m_setConfigCmd) m_setConfigCmd(cfg);
         startNewGame();
     });
 
     m_pausePage = new PauseMenuPage(this);
     connect(m_pausePage, &PauseMenuPage::backToTitle, this, &MainWindow::backToStart);
-
-    connect(&bus, &EventBus::evtPausedChanged, this, [this](bool paused) {
-        if (paused && m_stack->currentIndex() == PageGame) {
-            showPage(PagePause);
-        } else if (!paused && m_stack->currentIndex() == PagePause) {
-            resumeFromPause();
-        }
-    });
-
-    connect(&bus, &EventBus::evtGameOver, this, &MainWindow::onGameOver);
 
     m_stack = new QStackedWidget(this);
     m_stack->addWidget(startPage);
@@ -149,56 +128,104 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
     setCentralWidget(m_stack);
 }
 
-void MainWindow::showPage(PageIndex p) {
-    m_stack->setCurrentIndex(p);
+MainWindow::~MainWindow() noexcept {}
+
+PropertyNotification MainWindow::get_notification() {
+    return [this](uint32_t id) {
+        if (!m_vm) return;
+        const auto *model = m_vm->get_model();
+        switch (id) {
+        case PROP_ID_TURN:
+            updateTopBarColors();
+            m_canvas->update();
+            break;
+        case PROP_ID_ROUND:
+        case PROP_ID_POINTS:
+            updateTopBarColors();
+            break;
+        case PROP_ID_PHASE: {
+            m_canvas->update();
+            bool enabled = (model->phase() == GamePhase::WaitingInput);
+            m_input->setInputEnabled(enabled);
+            if (model->phase() == GamePhase::RoundEnd) {
+                QTimer::singleShot(1500, [this]() {
+                    if (m_nextTurnCmd) m_nextTurnCmd();
+                });
+            }
+            break;
+        }
+        case PROP_ID_TRAJECTORY:
+            m_canvas->update();
+            break;
+        case PROP_ID_MESSAGE:
+            m_input->setMessage(model->message());
+            break;
+        case PROP_ID_COST_PREVIEW:
+            m_input->setCostPreview(m_vm->costPreview());
+            break;
+        case PROP_ID_PAUSED:
+            if (model->paused() && m_stack->currentIndex() == PageGame) {
+                showPage(PagePause);
+            } else if (!model->paused() && m_stack->currentIndex() == PagePause) {
+                resumeFromPause();
+            }
+            break;
+        case PROP_ID_GAME_OVER:
+            m_canvas->update();
+            onGameOver(model->message());
+            break;
+        case PROP_ID_SAVE_RESULT:
+            m_savePage->refreshSlots();
+            m_pausePage->refreshSlots();
+            break;
+        }
+    };
 }
 
+void MainWindow::showPage(PageIndex p) { m_stack->setCurrentIndex(p); }
+
 void MainWindow::updateTopBarColors() {
-    auto &bus = EventBus::instance();
-    const auto &cfg = bus.config();
+    if (!m_vm) return;
+    const auto *model = m_vm->get_model();
+    const auto &cfg = model->config();
     auto makeStyle = [](const QColor &c) {
         return QString("color:rgba(%1,%2,%3,%4);font-weight:bold;font-size:14px;")
             .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
     };
-    auto dimStyle = QString("color:#555;font-size:14px;");
-    int cur = bus.currentPlayer();
-    m_p1Label->setStyleSheet(cur == 0 ? makeStyle(cfg.player1Color) : dimStyle);
-    m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : dimStyle);
+    int cur = model->currentPlayer();
+    m_p1Label->setStyleSheet(cur == 0 ? makeStyle(cfg.player1Color) : QString("color:#555;font-size:14px;"));
+    m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : QString("color:#555;font-size:14px;"));
 }
 
 void MainWindow::startNewGame() {
-    emit EventBus::instance().cmdNewGame();
+    if (m_newGameCmd) m_newGameCmd();
     updateTopBarColors();
     showPage(PageGame);
 }
 
 void MainWindow::goToConfig() {
-    if (m_configPage) m_configPage->refresh(EventBus::instance().config());
+    if (m_vm && m_configPage) m_configPage->refresh(m_vm->get_model()->config());
     showPage(PageConfig);
 }
 
-void MainWindow::goToSaveManager() {
-    showPage(PageSaveMgr);
-}
+void MainWindow::goToSaveManager() { showPage(PageSaveMgr); }
 
 void MainWindow::goToPause() {
-    emit EventBus::instance().cmdPause();
+    if (m_pauseCmd) m_pauseCmd();
     showPage(PagePause);
 }
 
 void MainWindow::resumeFromPause() {
-    emit EventBus::instance().cmdResume();
+    if (m_resumeCmd) m_resumeCmd();
     showPage(PageGame);
 }
 
 void MainWindow::backToStart() {
-    emit EventBus::instance().cmdResume();
     showPage(PageStart);
+    if (m_resumeCmd) m_resumeCmd();
 }
 
-void MainWindow::onGameLoaded() {
-    showPage(PageGame);
-}
+void MainWindow::onGameLoaded() { showPage(PageGame); }
 
 void MainWindow::onGameOver(const QString &winnerInfo) {
     auto *dialog = new QDialog(this);
@@ -239,7 +266,7 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
 
     connect(playAgainBtn, &QPushButton::clicked, dialog, [=]() {
         dialog->accept();
-        emit EventBus::instance().cmdNewGame();
+        if (m_newGameCmd) m_newGameCmd();
         showPage(PageGame);
     });
     connect(backToStartBtn, &QPushButton::clicked, dialog, [=]() {

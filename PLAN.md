@@ -136,72 +136,103 @@
 |------|------|
 | 语言 | C++17 |
 | GUI 框架 | Qt6 (Widgets) |
-| 构建工具 | CMake + Ninja |
+| 构建工具 | CMake + Ninja / MinGW |
 | 依赖管理 | vcpkg（需 VCPKG_ROOT 环境变量） |
 | 预设配置 | CMakePresets.json（Windows/Linux/macOS Release/Debug preset） |
-| 数学解析 | 递归下降解析器（Recursive Descent Parser） + AST 求值 |
+| 数学解析 | ShuntingYard 调车场算法 + Token 流求值 |
 | 图形渲染 | QWidget + QPainter 自定义绘制 |
 | 存档格式 | JSON 文件 |
-| 架构模式 | MVVM (Model-View-ViewModel) |
+| 架构模式 | MVVM + PropertyTrigger + Command (Model-View-ViewModel) |
+| 预编译头 | precomp.h（标准库 + Qt6 + 项目公共头文件） |
 
 ---
 
-## 项目结构 (MVVM)
+## 项目结构 (MVVM + PropertyTrigger + Command)
 
 ```
 Graphwar/
-├── CMakeLists.txt                          # CMake 主配置（Qt6、跨平台部署、RPATH、Icon）
-├── CMakePresets.json                       # 跨平台构建预设（release-windows/debug-windows/release-linux/release-macos）
+├── CMakeLists.txt                  # 根 CMake：project() + find_package(Qt6) + add_subdirectory(src)
+├── CMakePresets.json               # 跨平台构建预设
 ├── PLAN.md
 ├── README.md
+├── vcpkg.json
 ├── resources/
-│   ├── app.ico                             # 应用图标（Windows exe 嵌入 + Qt 运行时）
-│   ├── resources.qrc                       # Qt 资源文件（AUTORCC 编译）
-│   └── app.rc                              # Windows 资源脚本（exe 图标）
+│   ├── app.ico                     # 应用图标
+│   ├── app.rc                      # Windows 资源脚本
+│   ├── resources.qrc               # Qt 资源文件
+│   └── start_background.png        # 开始页背景图
 └── src/
-    ├── main.cpp                            # 程序入口，设置窗口图标
-    ├── model/                              # Model 层：纯数据容器，不含业务逻辑
-    │   ├── GameModel.h                     # 游戏数据模型（玩家、方块、障碍物、当前玩家、轮数、点数等级、阶段、轨迹、历史）
-    │   ├── GameConfig.h                    # 配置数据（方块数、障碍物数/大小、玩家颜色、坐标标签开关、网格线开关）
-    │   ├── GamePhase.h                     # 游戏阶段枚举（WaitingInput / Animating / RoundEnd / GameOver）
-    │   ├── Player.h                        # 玩家数据（id、颜色、方块列表）
-    │   ├── Square.h                        # 方块数据（坐标、大小、存活状态）
-    │   ├── SaveInfo.h/cpp                  # 存档元信息（slot、exists、roundNumber、currentPlayer、savedAt、displayTime）
-    │   └── parser/                         # 数学表达式解析器（仅被 Model 层调用）
-    │       ├── Token.h                     # Token 类型定义（Number / Variable / 运算符 / 数学函数 / Paren / End）
-    │       ├── Tokenizer.h/cpp             # 词法分析器（字符串 → Token 列表）
-    │       ├── Expression.h/cpp            # AST 节点定义（NumberExpr / VariableExpr / BinaryExpr / UnaryExpr）及 eval / cost 实现
-    │       ├── Parser.h/cpp                # 递归下降解析器（Token 列表 → AST）
-    │       └── Evaluator.h/cpp             # 对外接口：evaluate(expr, x) 求值、calculateCost(expr) 计费
-    ├── viewmodel/                          # ViewModel 层：业务逻辑 + 数据适配
-    │   ├── GameViewModel.h/cpp             # 核心 ViewModel：持有 Model+GameConfig，暴露只读接口（currentPlayer/roundNumber/availablePoints/playerColor/playerSquares/obstacles/historyTrajectory/config 等），通过 signals/slots 与 View 通信
-    │   └── SaveManager.h/cpp               # 存档文件读写（三槽位 JSON 读写，位于可执行文件同目录 saves/）
-    ├── view/                               # View 层：被动渲染 + 用户输入
-    │   ├── MainWindow.h/cpp                # 主窗口（QStackedWidget 切换五页：开始/游戏/存档管理/暂停/配置），信号绑定 ViewModel
-    │   ├── GameCanvas.h/cpp                # 画布：坐标系、方块、障碍物、函数曲线、动画轨迹、网格线、坐标标签、游戏结束遮罩
-    │   ├── FunctionInput.h/cpp             # 函数输入面板（回车触发发射、默认按钮、点数实时预览、消息提示）
-    │   ├── ConfigPage.h/cpp                # 配置页（方块数 SpinBox、障碍物数 SpinBox、障碍物大小 SpinBox、8 色预设色块、坐标标签开关、网格线开关、START GAME / BACK 按钮）
-    │   ├── SaveManagerPage.h/cpp           # 存档管理页（三槽位 Load/Delete，通过 ViewModel 接口操作）
-    │   └── PauseMenuPage.h/cpp             # 暂停菜单（继续/保存到三槽位/返回标题，通过 ViewModel 接口操作）
-    └── utils/                              # 工具层：通用算法与结构
-        └── Geometry.h                      # Rect（矩形数据结构 + 矩形包含判定）
+    ├── CMakeLists.txt              # 可执行文件定义：源文件列表 + 预编译头 + Qt 链接 + 平台插件部署
+    ├── precomp.h                   # 预编译头
+    ├── main.cpp                    # 程序入口：创建 GraphwarApp → show_main_window → QApplication::exec()
+    ├── app/                        # 应用层（Composition Root）
+    │   └── GraphwarApp.h/cpp       # 持有 ViewModel + MainWindow，执行绑定（wiring）
+    ├── common/                     # 通用基础设施
+    │   ├── frame.h/cpp             # PropertyTrigger 通知系统（Plane 风格，std::function 回调）
+    │   ├── property_ids.h          # 属性 ID 枚举（PROP_ID_TURN, PROP_ID_PHASE 等）
+    │   └── Geometry.h              # Rect 数据结构
+    ├── model/                      # Model 层：业务逻辑 + 数据容器
+    │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、JSON 序列化）
+    │   ├── GameConfig.h            # 配置数据结构
+    │   ├── GamePhase.h             # 阶段枚举
+    │   ├── Player.h                # 玩家数据
+    │   ├── Square.h                # 方块数据
+    │   ├── SaveInfo.h/cpp          # 存档元信息
+    │   ├── SaveManager.h/cpp       # 存档文件 IO（静态工具类）
+    │   └── parser/                 # 数学表达式解析器
+    │       ├── Token.h             # Token 类型
+    │       ├── Tokenizer.h/cpp     # 词法分析
+    │       ├── Expression.h/cpp    # AST 节点 + eval/cost
+    │       ├── Parser.h/cpp        # 递归下降解析器（备用）
+    │       ├── ShuntingYard.h/cpp  # 调车场算法（主要使用）
+    │       └── Evaluator.h/cpp     # 对外接口
+    ├── viewmodel/                  # ViewModel 层：继承 PropertyTrigger，暴露属性 + 命令
+    │   ├── GameViewModel.h/cpp     # 持有 GameModel，转发 Model 信号 → PropertyTrigger::fire()
+    │   └── commands/               # 命令实现（每个文件一个 std::function getter）
+    │       ├── NewGameCommand.cpp
+    │       ├── LaunchCommand.cpp
+    │       ├── UpdateCostPreviewCommand.cpp
+    │       ├── PauseCommand.cpp
+    │       ├── ResumeCommand.cpp
+    │       ├── NextTurnCommand.cpp
+    │       ├── SetConfigCommand.cpp
+    │       ├── SaveSlotCommand.cpp
+    │       ├── LoadSlotCommand.cpp
+    │       └── DeleteSlotCommand.cpp
+    ├── view/                       # View 层：QWidget，存储命令指针 + 注册通知回调
+    │   ├── MainWindow.h/cpp        # 主窗口（QStackedWidget 五页切换），持有所需命令 + 通知入口
+    │   └── widgets/                # 自定义 Widget
+    │       ├── GameCanvas.h/cpp    # 画布渲染
+    │       ├── FunctionInput.h/cpp # 输入面板
+    │       ├── ConfigPage.h/cpp    # 配置页
+    │       ├── SaveManagerPage.h/cpp  # 存档管理页
+    │       └── PauseMenuPage.h/cpp    # 暂停菜单页
 ```
 
-**MVVM 职责划分：**
+**MVVM + PropertyTrigger + Command 职责划分：**
 
 | 层 | 职责 | 文件 |
 |----|------|------|
-| **Model** | 纯数据容器，无业务逻辑，可被序列化/反序列化 | `GameModel`, `GameConfig`, `GamePhase`, `Player`, `Square`, `SaveInfo` |
-| **ViewModel** | 持有 Model + GameConfig，封装全部游戏/配置/存档逻辑，通过只读访问器和 signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager` |
-| **View** | 被动渲染，通过信号绑定 ViewModel 的属性变化，用户操作调用 ViewModel 的槽函数，不直接读写 Model | `MainWindow`, `GameCanvas`, `FunctionInput`, `ConfigPage`, `SaveManagerPage`, `PauseMenuPage` |
-| **Utils** | 通用工具（与业务逻辑无关） | `Geometry.h` |
+| **Model** | 游戏业务逻辑 + 数据 + 序列化 | `GameModel`, `SaveManager`, `parser/*` 等 |
+| **ViewModel** | 继承 `PropertyTrigger`，转发 Model 信号 → `fire(id)`；暴露 `std::function` 命令 getter | `GameViewModel`, `commands/*` |
+| **View** | 存储 `const GameViewModel*` + `std::function` 命令，注册 `PropertyNotification` 回调更新 UI | `MainWindow`, `widgets/*` |
+| **Common** | PropertyTrigger 通知框架 | `frame`, `property_ids`, `Geometry` |
 
-**ViewModel 与 View 之间的关键接口（不完全清单）：**
+**通信模式：**
 
-- 状态读取：`currentPlayer()`, `roundNumber()`, `availablePoints()`, `phase()`, `playerColor(int)`, `aliveCount(int)`, `playerSquares(int)`, `obstacles()`, `trajectory()`, `historyTrajectory()`, `selectedSquareIndex()`, `isWaitingInput()`, `isAnimating()`, `isGameOver()`, `showGridLines()`, `showCoordinates()`, `config()`
-- 玩家操作槽：`newGame()`, `launch(QString)`, `updateCostPreview(QString)`, `pause()`, `resume()`, `togglePause()`, `setConfig(GameConfig)`
-- 存档操作槽：`saveToSlot(int)`, `loadFromSlot(int)`, `deleteSlot(int)`, `slotCount()`, `slotInfos()`, `slotPath(int)`
-- 信号：`turnChanged`, `roundChanged`, `pointsChanged`, `costPreviewChanged`, `phaseChanged`, `messageChanged`, `trajectoryUpdated`, `animationFinished`, `pausedChanged`, `saveResult`, `gameOver`
+```
+GraphwarApp (构造时绑定):
+  m_view_model.add_notification(m_main_wnd.get_notification());
+  m_main_wnd.set_pause_command(m_view_model.get_pause_command());
+  // ... 其他命令 & 属性绑定
+
+用户操作 → View 调用存储的 std::function 命令 → GameViewModel → Model 状态变更
+Model 状态变更 → Qt signal → GameViewModel → PropertyTrigger::fire(id) →  View 通知回调更新 UI
+```
+
+- View 不直接持有 ViewModel（通过指针访问状态），命令以 `std::function` 形式注入
+- `GraphwarApp` 是 Composition Root，负责创建实例并执行绑定（wiring）
+- Model 不依赖任何 View/ViewModel 代码
 
 ---
 
@@ -220,12 +251,13 @@ Graphwar/
 
 **流程：**
 ```
-输入字符串 → 词法分析(Tokenizer) → 递归下降解析(Parser) → AST → Evaluator 求值 / 计费
+输入字符串 → 词法分析(Tokenizer) → ShuntingYard 调车场 → Token 流求值 / 计费
 ```
+（递归下降解析器 `Parser` 保留作为备用实现）
 
 **一元负号解析：**
-- 当 `-` 出现在表达式开头、紧跟 `(` 或 `^` 之后、紧跟其他运算符之后时，解析为 `NegateExpr`（一元负号）
-- `NegateExpr` 不额外消耗点数，仅从其唯一子节点继承 cost
+- 当 `-` 出现在表达式开头、紧跟 `(` 或 `^` 之后、紧跟其他运算符之后时，解析为一元负号
+- 一元负号不额外消耗点数，仅从其唯一子节点继承 cost
 
 **自动常数调整：**
 - 由于函数必须经过发射方格中心 (cx, cy)，系统自动计算常数项
@@ -234,7 +266,7 @@ Graphwar/
 - 用户无需手动调整常数，直接在输入框输入表达式即可
 - 常数 C 不消耗点数（不计入函数 cost）
 
-### 2. 游戏引擎 (GameViewModel)
+### 2. 游戏引擎 (GameModel)
 
 **状态机：**
 ```
@@ -244,9 +276,9 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 **详细流程：**
 1. 轮到当前玩家 → 系统**随机选择**一个未摧毁方格作为发射点（玩家不可自己选择）；更新可用点数显示
-2. 玩家输入函数 → 实时点数预览（updateCostPreview）
+2. 玩家输入函数 → 实时点数预览（通过 `m_costPreviewCmd` 命令）
 3. 回车或点击 FIRE 触发发射
-4. **点数校验**：解析 AST 计算函数总消耗，若超过当前可用点数则拒绝并提示
+4. **点数校验**：解析 Token 流计算函数总消耗，若超过当前可用点数则拒绝并提示
 5. 系统自动计算常数 C = cy - f(cx)，调整函数图像使其经过发射方格中心
 6. 进入动画阶段（QTimer @ 16ms）：从发射点向**对方方向**逐帧延伸轨迹
 7. **障碍物优先碰撞**：先检查是否碰到未被破坏的障碍物，碰到则**立即中止攻击**，破坏该障碍物，结束该回合
@@ -262,8 +294,8 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 ### 3. 画布渲染 (GameCanvas / View)
 
 **与 ViewModel 的绑定方式：**
-- GameCanvas 构造时接收 `GameViewModel* vm`，通过 vm 的只读接口获取数据
-- 信号触发重绘（通过外部 timer 或 MainWindow 驱动）
+- GameCanvas 通过 `m_vm->get_model()` 获取所有状态（`model->currentPlayer()`, `model->playerSquares(pl)`, `model->trajectory()` 等）
+- 通过 MainWindow 通知回调中的 `PROP_ID_*` 分发触发 `update()` 重绘
 - Canvas 不直接修改任何游戏数据，仅作绘制
 
 **坐标系：**
@@ -272,17 +304,17 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 原点 (0,0) 在画布中心
 
 **绘制内容（按 z-order，由先到后）：**
-1. 背景（深色 #0f0f1a）
-2. **网格线**（可选，默认关闭；每 5 单位一条，横竖对称分布，范围覆盖 [-30, 30]）
+1. 背景（深色 #14141e）
+2. **网格线**（可选，默认关闭；每 5 单位一条，横竖对称分布；边界线 x=-20/x=20/y=-20/y=20 使用更亮颜色 `(80,80,110)` 以区别于内部网格 `(35,35,50)`）
 3. 坐标轴（灰色实线，横轴穿过 y=0，纵轴穿过 x=0）
 4. **障碍物**（灰色填充矩形 + 深色边框；被破坏后显示为虚线轮廓，无填充）
 5. 双方的方格（P1 蓝调、P2 红调，半透明矩形，被摧毁的统一标记为灰色）
-6. **选中方格**：白色虚线边框 + **可选的 (cx, cy) 坐标标签**（默认开启，可在配置页关闭；标签带半透明黑底，避免重叠画布边缘时自动翻转到另一侧）
+6. **选中方格**：白色虚线边框 + **可选的 (cx, cy) 坐标标签**（默认开启，可在配置页关闭）
 7. **上一条历史轨迹**（淡灰色，仅保留最近一次）
 8. **当前动画轨迹**（玩家 1 蓝调 / 玩家 2 红调，亮色，逐渐延伸）
 9. **轨迹上的"弹头"**（高亮圆点，沿曲线运动）
 10. 顶部状态栏：P1 存活数、Round N、点数、P2 存活数（P1/P2 颜色随配置动态变化）
-11. 游戏结束遮罩：大字 "GAME OVER" + 对话框（由 MainWindow 的 Dialog 处理）
+11. 游戏结束遮罩（由 MainWindow 的模态对话框处理，画布上不绘制大字）
 
 ### 4. 碰撞检测
 
@@ -305,8 +337,8 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 存储在**可执行文件所在目录**的 `saves/` 子目录（跨平台通用）
 - 不使用 `%APPDATA%` 或 `~/.local/share/`，确保三个平台一致行为
 - 通过 `SaveManager::savesDir()` 计算路径 = `QCoreApplication::applicationDirPath() + "/saves"`
-- `SaveManager::slotInfo(int)` 读取 JSON 中的 `currentPlayer` 和 `roundNumber` 用于 UI 显示
-- 存档写入/读取通过 `GameViewModel::saveToSlot(int)` / `loadFromSlot(int)` 间接调用 SaveManager（View 层不直接调用 SaveManager）
+- `SaveManager` 是纯静态工具类（Model 层），提供 `writeSlot` / `readSlot` / `slotInfo` / `deleteSlot`
+- 存档操作流程：View 发射 `cmdSaveToSlot` / `cmdLoadFromSlot` / `cmdDeleteSlot` → ViewModel 处理 → SaveManager 文件 IO → 发射 `evtSaveResult(slot, ok, info)` → View 响应（刷新 UI / 导航 / 弹窗）
 - 存档字段请参考上面"存档系统"小节
 
 ### 6. UI 布局
@@ -339,12 +371,12 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 │              Game Canvas                            │
 │   ┌───┐      ┌─┐          ┌─┐        ┌───┐        │
 │   │ P │      │Ob│          │Ob│        │ P │        │
-│   │ 1 │(-12.3,5.1)         │Ob│        │ 2 │        │  ← 选中方块坐标标签
+│   │ 1 │(-12.3,5.1)         │Ob│        │ 2 │        │
 │   │ ■ │ ╲ ╱ ╲ ╱ ────────→ ╱ ╲ ╱       │ ■ │        │
 │   └───┘                                            └───┘
 │                                                      │
 ├──────────────────────────────────────────────────────┤
-│  f(x) = [________________]  消耗:3/8  [ FIRE ]     │  ← 输入区，回车触发发射
+│  [⏸ Pause]  f(x) = [________]  Cost: 0  [Fire!]   │  ← 输入区，回车触发发射
 │  [消息提示：Hit! / Miss! / Player 1 wins! / ...]    │
 └──────────────────────────────────────────────────────┘
 ```
@@ -365,32 +397,9 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 │                        [ ← Back ]                   │
 └──────────────────────────────────────────────────────┘
 ```
-- 通过 ViewModel 的 `slotInfos()` 读取槽位信息
-- Load / Delete 操作调用 ViewModel 的 `loadFromSlot()` / `deleteSlot()`
-
-**第 4 页 — 配置页：**
-```
-┌──────────────────────────────────────────────────────┐
-│                   Game Settings                      │
-├──────────────────────────────────────────────────────┤
-│  Squares per player (1-10):   [5] ±                 │
-│  Obstacles (0-30):           [10] ±                 │
-│  Obstacle size (0.5-5.0):   [1.8] ±                 │
-│                                                      │
-│  ☑ Show square coordinates                          │
-│  ☐ Show grid lines                                  │
-│                                                      │
-│  P1 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
-│  P2 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
-├──────────────────────────────────────────────────────┤
-│           [ ← Back ]     [ START GAME ]            │
-└──────────────────────────────────────────────────────┘
-```
-- 颜色使用 8 种预设色块（蓝/红/绿/橙/紫/青/黄/粉），点击选中
-- 两位玩家不能选择相同颜色，否则 START GAME 时提示
-- SpinBox 按钮使用 ± 符号（`setButtonSymbols(PlusMinus)`）
-- START GAME 后将配置写入 ViewModel，再调用 `newGame()` 初始化游戏并切换到游戏页
-- Back / ESC 返回开始页，配置不保存
+- 通过 `SaveManager::slotInfos()` 读取槽位信息
+- Load / Delete 操作调用存储在 Widget 中的 `std::function` 命令
+- 存/删操作后通过 `PROP_ID_SAVE_RESULT` 通知自动刷新槽位显示（`refreshSlots()`）
 
 **第 3 页 — 暂停菜单页：**
 ```
@@ -417,23 +426,62 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 └──────────────────────────────────────────────────────┘
 ```
 
-**交互流程（MVVM 数据流）：**
-1. 开始界面点击 NEW GAME → 切换到配置页，回显当前 GameConfig
-2. 配置页点击 START GAME → 检查 P1/P2 颜色不冲突 → 调用 `vm.setConfig(cfg)` → 调用 `vm.newGame()` → 切换到游戏页，系统随机挑选发射点
-3. 配置页点击 Back / ESC → 返回开始页，配置不保存
-4. 开始界面点击 Load / Manage Saves → 切换到存档管理页
-5. 游戏过程中点击 PAUSE 或按 ESC → 切换到暂停页（VM 进入 paused 状态）
-6. 暂停页 CONTINUE 或 ESC → 回到游戏，状态完全恢复（VM 退出 paused 状态）
-7. 暂停页点击某槽位的 Save → 通过 `vm.saveToSlot(slot)` 将当前游戏状态写入对应 JSON 文件，覆盖已有存档时提示确认
-8. 存档管理页点击 LOAD → 通过 `vm.loadFromSlot(slot)` 读回游戏状态 + 配置 → 回到游戏页
-9. 存档管理页点击 DELETE → 调用 `vm.deleteSlot(slot)` 删除对应 JSON 文件
-10. 游戏过程中：
-    - 输入区输入表达式 → 实时计算消耗点数（`vm.updateCostPreview`）
-    - 回车或点击 FIRE → 调用 `GameViewModel::launch(QString expr)`
-    - 玩家**无法自己选择发射点**，发射点完全由系统在回合开始时随机挑选
-    - ViewModel 内部：解析表达式 → 计算消耗 → 校验点数 → 计算常数 C → 进入动画阶段
-    - QTimer 驱动逐帧绘制轨迹；优先检查障碍物碰撞，然后检查对方方格；到达边界或障碍物后结束
-    - 游戏结束后 emit `gameOver`，MainWindow 弹出 "PLAY AGAIN / BACK TO START PAGE" 模态对话框
+**第 4 页 — 配置页：**
+```
+┌──────────────────────────────────────────────────────┐
+│                   Game Settings                      │
+├──────────────────────────────────────────────────────┤
+│  Squares per player (1-10):   [5] ±                 │
+│  Obstacles (0-30):           [10] ±                 │
+│  Obstacle size (0.5-5.0):   [1.8] ±                 │
+│                                                      │
+│  ☑ Show square coordinates                          │
+│  ☐ Show grid lines                                  │
+│                                                      │
+│  P1 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
+│  P2 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
+├──────────────────────────────────────────────────────┤
+│           [ ← Back ]     [ START GAME ]            │
+└──────────────────────────────────────────────────────┘
+```
+- 颜色使用 8 种预设色块（蓝/红/绿/橙/紫/青/黄/粉），点击选中
+- 两位玩家不能选择相同颜色，否则 START GAME 时提示
+- SpinBox 按钮使用 ± 符号（`setButtonSymbols(PlusMinus)`）
+
+**交互流程（MVVM + PropertyTrigger + Command 数据流）：**
+
+初始绑定（GraphwarApp 构造函数）：
+```
+GraphwarApp::GraphwarApp()
+  // 设置 ViewModel 指针
+  m_main_wnd.set_view_model(&m_view_model);
+  m_main_wnd.get_canvas()->set_view_model(&m_view_model);
+  m_main_wnd.get_input()->set_view_model(&m_view_model);
+
+  // 注入命令
+  m_main_wnd.set_new_game_command(m_view_model.get_new_game_command());
+  m_main_wnd.set_pause_command(m_view_model.get_pause_command());
+  // ... 其他命令
+
+  // 注册通知链
+  m_view_model.add_notification(m_main_wnd.get_notification());
+```
+
+用户操作流程：
+1. 开始界面点击 NEW GAME → 切换到配置页，通过 `m_vm->get_model()->config()` 回显
+2. 配置页 START GAME → emit `configSaved(cfg)` → MainWindow 调用 `m_setConfigCmd(cfg)` + `startNewGame()` → 调用 `m_newGameCmd()` → GameModel::newGame() → 发射 Qt 信号 → ViewModel → `fire(PROP_ID_xxx)` → 通知回调更新 UI → 切到游戏页
+3. 配置页 Back / ESC → 返回开始页，配置不保存
+4. 开始界面 Load / Manage Saves → 切到存档管理页
+5. 暂停按钮 → `m_pauseCmd()` → GameModel::pause() → `fire(PROP_ID_PAUSED)` → MainWindow 通知回调 → `showPage(PagePause)`
+6. ESC → 游戏页 → `goToPause()`；暂停页 → `resumeFromPause()`；其他页 → `backToStart()`
+7. 暂停页 CONTINUE → `m_resumeCmd()` → GameModel::resume() → `fire(PROP_ID_PAUSED)` → 切回游戏页
+8. 暂停页保存 → `m_saveSlotCmd(slot)` → SaveManager::writeSlot() → `fire(PROP_ID_SAVE_RESULT)` → 刷新槽位显示 + 弹窗
+9. 存档管理页 LOAD → `m_loadSlotCmd(slot)` → SaveManager::readSlot() → GameModel::fromJson() → `fire(PROP_ID_*)` 全部 → 切到游戏页
+10. 存档管理页 DELETE → 确认 → `m_deleteSlotCmd(slot)` → SaveManager::deleteSlot() → `fire(PROP_ID_SAVE_RESULT)` → 刷新槽位
+11. 游戏过程：
+    - 输入表达式 → 调用 `m_costPreviewCmd(text)` → ViewModel 计算消耗 → `fire(PROP_ID_COST_PREVIEW)` → 更新 Cost 标签
+    - 点击 FIRE / 回车 → `m_launchCmd(text)` → GameModel::launch() → 动画开始
+    - GameModel 动画 QTimer @ 16ms → `stepAnimation()` → 碰撞检测 → 出界/障碍物/胜利 → `fire(PROP_ID_TRAJECTORY)` → 画布更新
 
 ### 7. 应用图标
 
@@ -447,7 +495,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 ## 方格随机生成算法
 
-每局初始化时调用 `GameViewModel::generateSquares()`：
+`GameModel::generateSquares()`：
 
 ```
 输入：方块数量、P1 颜色、P2 颜色
@@ -466,7 +514,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 
 方格世界坐标 **0.8×0.8**（正方形），碰撞判定区域与方格大小一致。
 
-障碍物调用 `GameViewModel::generateObstacles(count, size)`：
+障碍物调用 `GameModel::generateObstacles(count, size)`：
 - 分布在 x ∈ [-20, 20]，y ∈ [-20, 20]，共 count 个（默认 10）
 - 障碍物之间最小中心距 `size + 0.7` 单位（避免互相重叠）
 - 障碍物与玩家方格最小中心距 `size * 0.5 + 0.3` 单位（避免覆盖玩家方块）
@@ -483,16 +531,28 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 ### 前提条件
 - C++17 编译器（MSVC 2022 / GCC 9+ / Clang 10+）
 - CMake ≥ 3.20
-- Ninja
+- Ninja 或 MinGW（make）
 - vcpkg（环境变量 `VCPKG_ROOT` 指向 vcpkg 根目录）
 - Qt6（通过 vcpkg 安装的 `qtbase:x64-windows` / `qtbase:x64-linux` / `qtbase:x64-osx`）
 
-### Windows（使用 vcpkg）
+### Windows（使用 vcpkg + Ninja）
 
 ```bat
 cd d:\Graphwar
 cmake --preset release-windows
 cmake --build build
+build\Graphwar.exe
+```
+
+### Windows（使用 vcpkg + MinGW）
+
+```bat
+cd d:\Graphwar
+cmake -B build -S . -G "MinGW Makefiles" ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" ^
+    -DVCPKG_TARGET_TRIPLET=x64-windows
+mingw32-make -C build
 build\Graphwar.exe
 ```
 
@@ -540,4 +600,4 @@ A: 说明 MSVC 的环境变量（INCLUDE / LIBPATH / PATH）未激活。请在 V
 A: 可执行文件旁的 `platforms/qwindows.dll`（Windows）或 `libqcocoa.dylib`（macOS）或 `libqxcb.so`（Linux）未部署。CMakePresets.json 已通过 POST_BUILD 自动部署，清理 build 目录后重新配置即可。
 
 **Q: 修改了 PLAN.md 但游戏行为不一致？**
-A: PLAN.md 中的规则描述需与 `GameViewModel.cpp` / `GameModel.h` / `GameConfig.h` 的实际实现一致；任何逻辑/配置变更后请同步更新 PLAN.md。
+A: PLAN.md 中的规则描述需与 `GameModel.cpp` / `GameModel.h` / `GameConfig.h` 的实际实现一致；架构描述需与 `frame.h` / `GameViewModel.cpp` / `GraphwarApp.cpp` 一致；任何逻辑/配置变更后请同步更新 PLAN.md。

@@ -1,7 +1,7 @@
 #pragma once
 #include "common/frame.h"
+#include "common/GameState.h"
 #include "model/GameModel.h"
-#include "model/SaveInfo.h"
 
 class GameViewModel : public PropertyTrigger {
 public:
@@ -11,7 +11,7 @@ public:
 
     GameViewModel& operator=(const GameViewModel&) = delete;
 
-    const GameModel* get_model() const noexcept { return m_model; }
+    const GameState* get_state() const noexcept { return &m_state; }
 
     std::function<void()> get_new_game_command();
     std::function<void(const QString&)> get_launch_command();
@@ -24,11 +24,13 @@ public:
     std::function<void(int)> get_load_slot_command();
     std::function<void(int)> get_delete_slot_command();
 
-    int costPreview() const noexcept { return m_costPreview; }
+    const int& costPreview() const noexcept { return m_costPreview; }
 
 private:
+    void syncState();
     void forwardModelSignals();
 
     GameModel *m_model = nullptr;
+    GameState m_state;
     int m_costPreview = 0;
 };

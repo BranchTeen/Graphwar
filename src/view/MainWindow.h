@@ -1,8 +1,7 @@
 #pragma once
 #include "common/frame.h"
 
-class GameViewModel;
-class GameModel;
+struct GameState;
 class GameCanvas;
 class FunctionInput;
 class ConfigPage;
@@ -18,7 +17,8 @@ public:
     ~MainWindow() noexcept;
     MainWindow& operator=(const MainWindow&) = delete;
 
-    void set_view_model(const GameViewModel* vm) noexcept { m_vm = vm; }
+    void set_state(const GameState* state) noexcept { m_state = state; }
+    void set_cost_preview_ptr(const int* ptr) noexcept { m_costPreviewPtr = ptr; }
 
     void set_new_game_command(std::function<void()>&& cmd) noexcept { m_newGameCmd = std::move(cmd); }
     void set_set_config_command(std::function<void(const GameConfig&)>&& cmd) noexcept { m_setConfigCmd = std::move(cmd); }
@@ -55,10 +55,11 @@ private:
     void onGameLoaded();
     void onGameOver(const QString &winnerInfo);
     void updateTopBarColors();
-    void updateCoordLabels(const GameModel *model);
+    void updateCoordLabels();
 
     QStackedWidget *m_stack;
-    const GameViewModel *m_vm = nullptr;
+    const GameState *m_state = nullptr;
+    const int *m_costPreviewPtr = nullptr;
     GameCanvas *m_canvas;
     FunctionInput *m_input;
     QLabel *m_p1Label, *m_p2Label, *m_roundLabel, *m_pointsLabel, *m_coordLabel, *m_coordLabel2;

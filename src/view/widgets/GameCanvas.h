@@ -3,7 +3,7 @@
 #include <QPointF>
 #include "common/frame.h"
 
-class GameViewModel;
+struct GameState;
 
 class GameCanvas : public QWidget {
     Q_OBJECT
@@ -13,7 +13,7 @@ public:
     ~GameCanvas() noexcept;
     GameCanvas& operator=(const GameCanvas&) = delete;
 
-    void set_view_model(const GameViewModel* vm) noexcept { m_vm = vm; }
+    void set_state(const GameState* state) noexcept { m_state = state; }
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -21,7 +21,7 @@ protected:
 private:
     QPointF worldToScreen(double wx, double wy) const;
 
-    const GameViewModel *m_vm = nullptr;
+    const GameState *m_state = nullptr;
     double m_scale = 40.0;
     double m_ox = 0, m_oy = 0;
 };

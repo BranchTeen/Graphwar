@@ -4,7 +4,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include "common/frame.h"
-#include "model/SaveInfo.h"
+#include "common/SaveInfo.h"
 
 class SaveManagerPage : public QWidget {
     Q_OBJECT
@@ -21,6 +21,7 @@ public:
 
 signals:
     void backRequested();
+    void loadRequested();
 
 private slots:
     void onLoadClicked(int slot);

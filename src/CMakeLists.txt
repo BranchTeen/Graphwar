@@ -3,8 +3,8 @@ set(SOURCES
     app/GraphwarApp.cpp
     common/frame.cpp
     model/GameModel.cpp
-    model/SaveInfo.cpp
-    model/SaveManager.cpp
+    common/SaveInfo.cpp
+    common/SaveManager.cpp
     model/parser/Tokenizer.cpp
     model/parser/Expression.cpp
     model/parser/Parser.cpp

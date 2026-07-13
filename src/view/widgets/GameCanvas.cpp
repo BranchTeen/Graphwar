@@ -1,6 +1,5 @@
 #include "GameCanvas.h"
-#include "viewmodel/GameViewModel.h"
-#include "model/GameModel.h"
+#include "common/GameState.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -26,11 +25,10 @@ void GameCanvas::paintEvent(QPaintEvent *) {
 
     p.fillRect(rect(), QColor(20, 20, 30));
 
-    if (!m_vm) return;
-    const auto *model = m_vm->get_model();
-    const auto &cfg = model->config();
+    if (!m_state) return;
+    const auto &s = *m_state;
 
-    if (cfg.showGridLines) {
+    if (s.config.showGridLines) {
         for (int gx = -20; gx <= 20; gx += 5) {
             bool edge = (gx == -20 || gx == 20);
             p.setPen(QPen(edge ? QColor(80, 80, 110) : QColor(35, 35, 50), 1));
@@ -48,7 +46,7 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     p.drawLine(QPointF(0, ox.y()), QPointF(w, ox.y()));
     p.drawLine(QPointF(ox.x(), 0), QPointF(ox.x(), h));
 
-    QVector<Square> obstacles = model->obstacles();
+    QVector<Square> obstacles = s.obstacles;
     for (auto &obs : obstacles) {
         QPointF tl = worldToScreen(obs.rect.cx - obs.rect.w/2, obs.rect.cy + obs.rect.h/2);
         QPointF br = worldToScreen(obs.rect.cx + obs.rect.w/2, obs.rect.cy - obs.rect.h/2);
@@ -64,13 +62,13 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         }
     }
 
-    int curPlayer = model->currentPlayer();
+    int curPlayer = s.currentPlayer;
 
     for (int pl = 0; pl < 2; ++pl) {
-        QColor playerColor = model->playerColor(pl);
-        QVector<Square> squares = model->playerSquares(pl);
+        QColor playerColor = s.playerColors[pl];
+        const auto &squares = s.playerSquares[pl];
         for (int i = 0; i < squares.size(); ++i) {
-            auto &sq = squares[i];
+            const auto &sq = squares[i];
             QPointF tl = worldToScreen(sq.rect.cx - sq.rect.w/2, sq.rect.cy + sq.rect.h/2);
             QPointF br = worldToScreen(sq.rect.cx + sq.rect.w/2, sq.rect.cy - sq.rect.h/2);
             QRectF r(tl, br);
@@ -83,14 +81,14 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                 p.fillRect(r, playerColor);
             }
 
-            if (!sq.destroyed && pl == curPlayer && i == model->selectedSquareIndex()) {
+            if (!sq.destroyed && pl == curPlayer && i == s.selectedSquareIndex) {
                 p.setPen(QPen(QColor(255, 255, 255), 2, Qt::DashLine));
                 p.drawRect(r.adjusted(-3, -3, 3, 3));
             }
         }
     }
 
-    auto fullHistory = model->history();
+    QVector<QVector<QPointF>> fullHistory = s.history;
     QVector<QPointF> history = fullHistory.isEmpty() ? QVector<QPointF>() : fullHistory.last();
     if (!history.isEmpty()) {
         p.setPen(QPen(QColor(100, 100, 100), 1));
@@ -99,9 +97,9 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                        worldToScreen(history[i].x(), history[i].y()));
     }
 
-    QVector<QPointF> traj = model->trajectory();
+    const auto &traj = s.trajectory;
     if (!traj.isEmpty()) {
-        QColor playerColor = model->playerColor(curPlayer);
+        QColor playerColor = s.playerColors[curPlayer];
         p.setPen(QPen(playerColor, 2));
         for (int i = 1; i < traj.size(); ++i)
             p.drawLine(worldToScreen(traj[i-1].x(), traj[i-1].y()),
@@ -110,21 +108,20 @@ void GameCanvas::paintEvent(QPaintEvent *) {
 
     if (!traj.isEmpty()) {
         QPointF bullet = worldToScreen(traj.last().x(), traj.last().y());
-        p.setBrush(QBrush(model->playerColor(curPlayer)));
+        p.setBrush(QBrush(s.playerColors[curPlayer]));
         p.setPen(QPen(QColor(255, 255, 255), 1));
         p.drawEllipse(bullet, 5, 5);
     }
 
-    if (model->isGameOver()) {
+    if (s.gameOver) {
         p.fillRect(rect(), QColor(0, 0, 0, 180));
         p.setPen(QPen(QColor(255, 255, 255), 3));
         p.setFont(QFont("Arial", 24, QFont::Bold));
         QString winner = QString("PLAYER %1 WINS!\nAlive: %2 vs %3\nRound %4")
             .arg(curPlayer + 1)
-            .arg(model->aliveCount(0))
-            .arg(model->aliveCount(1))
-            .arg(model->roundNumber());
+            .arg(s.aliveCount[0])
+            .arg(s.aliveCount[1])
+            .arg(s.roundNumber);
         p.drawText(rect(), Qt::AlignCenter, winner);
     }
-
 }

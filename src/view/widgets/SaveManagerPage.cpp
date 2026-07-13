@@ -1,5 +1,5 @@
 #include "SaveManagerPage.h"
-#include "model/SaveManager.h"
+#include "common/SaveManager.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -100,6 +100,7 @@ void SaveManagerPage::refreshSlots() {
 
 void SaveManagerPage::onLoadClicked(int slot) {
     if (m_loadSlotCmd) m_loadSlotCmd(slot);
+    emit loadRequested();
 }
 
 void SaveManagerPage::onDeleteClicked(int slot) {

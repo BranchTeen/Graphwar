@@ -6,9 +6,9 @@
 #include <QColor>
 class QTimer;
 #include "Player.h"
-#include "GamePhase.h"
-#include "GameConfig.h"
-#include "Square.h"
+#include "common/GamePhase.h"
+#include "common/GameConfig.h"
+#include "common/Square.h"
 
 // GameModel：MVVM 的 Model 层
 // - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）

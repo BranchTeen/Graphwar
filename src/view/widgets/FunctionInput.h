@@ -5,8 +5,6 @@
 #include <QLabel>
 #include "common/frame.h"
 
-class GameViewModel;
-
 class FunctionInput : public QWidget {
     Q_OBJECT
 public:
@@ -14,8 +12,6 @@ public:
     FunctionInput(const FunctionInput&) = delete;
     ~FunctionInput() noexcept;
     FunctionInput& operator=(const FunctionInput&) = delete;
-
-    void set_view_model(const GameViewModel* vm) noexcept { m_vm = vm; }
 
     void set_launch_command(std::function<void(const QString&)>&& cmd) noexcept { m_launchCmd = std::move(cmd); }
     void set_update_cost_preview_command(std::function<void(const QString&)>&& cmd) noexcept { m_costPreviewCmd = std::move(cmd); }
@@ -30,7 +26,6 @@ private slots:
     void onLaunch();
 
 private:
-    const GameViewModel *m_vm = nullptr;
     QLineEdit *m_input;
     QPushButton *m_fireBtn;
     QLabel *m_messageLabel;

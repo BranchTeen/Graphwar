@@ -1,5 +1,5 @@
 #pragma once
-#include "Square.h"
+#include "common/Square.h"
 #include <QVector>
 #include <QColor>
 

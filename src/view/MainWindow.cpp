@@ -1,5 +1,5 @@
 #include "view/MainWindow.h"
-#include "viewmodel/GameViewModel.h"
+#include "common/GameState.h"
 #include "common/property_ids.h"
 #include "widgets/GameCanvas.h"
 #include "widgets/FunctionInput.h"
@@ -35,28 +35,36 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     m_coordLabel = new QLabel(this);
     m_coordLabel->setStyleSheet("color:#ffc;font-size:12px;");
-    m_coordLabel->hide();
+    m_coordLabel->setFixedWidth(110);
 
     m_p1Label = new QLabel("Player 1", this);
     m_p1Label->setStyleSheet("color:#3c78dc;font-weight:bold;font-size:14px;");
+    m_p1Label->setFixedWidth(80);
     m_p2Label = new QLabel("Player 2", this);
     m_p2Label->setStyleSheet("color:#dc3c3c;font-weight:bold;font-size:14px;");
+    m_p2Label->setFixedWidth(80);
+
+    m_coordLabel2 = new QLabel(this);
+    m_coordLabel2->setStyleSheet("color:#ffc;font-size:12px;");
+    m_coordLabel2->setFixedWidth(110);
 
     m_roundLabel = new QLabel(this);
     m_roundLabel->setStyleSheet("color:#ffcc00;font-size:14px;font-weight:bold;");
     m_pointsLabel = new QLabel(this);
     m_pointsLabel->setStyleSheet("color:#ffcc00;font-size:14px;");
 
-    m_coordLabel2 = new QLabel(this);
-    m_coordLabel2->setStyleSheet("color:#ffc;font-size:12px;");
-    m_coordLabel2->hide();
+    auto *centerWidget = new QWidget(this);
+    auto *centerLayout = new QHBoxLayout(centerWidget);
+    centerLayout->setContentsMargins(0, 0, 0, 0);
+    centerLayout->setSpacing(8);
+    centerLayout->addWidget(m_roundLabel);
+    centerLayout->addWidget(m_pointsLabel);
 
     topLayout->addWidget(m_p1Label);
     topLayout->addWidget(m_coordLabel);
-    topLayout->addStretch();
-    topLayout->addWidget(m_roundLabel);
-    topLayout->addWidget(m_pointsLabel);
-    topLayout->addStretch();
+    topLayout->addStretch(1);
+    topLayout->addWidget(centerWidget);
+    topLayout->addStretch(1);
     topLayout->addWidget(m_coordLabel2);
     topLayout->addWidget(m_p2Label);
 
@@ -118,6 +126,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     m_savePage = new SaveManagerPage(this);
     connect(m_savePage, &SaveManagerPage::backRequested, this, &MainWindow::backToStart);
+    connect(m_savePage, &SaveManagerPage::loadRequested, this, [this]() { showPage(PageGame); });
 
     m_configPage = new ConfigPage(this);
     connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
@@ -143,26 +152,26 @@ MainWindow::~MainWindow() noexcept {}
 
 PropertyNotification MainWindow::get_notification() {
     return [this](uint32_t id) {
-        if (!m_vm) return;
-        const auto *model = m_vm->get_model();
+        if (!m_state) return;
+        auto *s = m_state;
         switch (id) {
         case PROP_ID_TURN:
             updateTopBarColors();
             m_canvas->update();
-            updateCoordLabels(model);
+            updateCoordLabels();
             break;
         case PROP_ID_ROUND:
-            m_roundLabel->setText(QString("Round %1").arg(model->roundNumber()));
+            m_roundLabel->setText(QString("Round %1").arg(s->roundNumber));
             break;
         case PROP_ID_POINTS:
-            m_pointsLabel->setText(QString("Points: %1").arg(model->availablePoints()));
+            m_pointsLabel->setText(QString("Points: %1").arg(s->availablePoints));
             break;
         case PROP_ID_PHASE: {
             m_canvas->update();
-            updateCoordLabels(model);
-            bool enabled = (model->phase() == GamePhase::WaitingInput);
+            updateCoordLabels();
+            bool enabled = (s->phase == GamePhase::WaitingInput);
             m_input->setInputEnabled(enabled);
-            if (model->phase() == GamePhase::RoundEnd) {
+            if (s->phase == GamePhase::RoundEnd) {
                 QTimer::singleShot(1500, [this]() {
                     if (m_nextTurnCmd) m_nextTurnCmd();
                 });
@@ -173,21 +182,21 @@ PropertyNotification MainWindow::get_notification() {
             m_canvas->update();
             break;
         case PROP_ID_MESSAGE:
-            m_input->setMessage(model->message());
+            m_input->setMessage(s->message);
             break;
         case PROP_ID_COST_PREVIEW:
-            m_input->setCostPreview(m_vm->costPreview());
+            m_input->setCostPreview(m_costPreviewPtr ? *m_costPreviewPtr : 0);
             break;
         case PROP_ID_PAUSED:
-            if (model->paused() && m_stack->currentIndex() == PageGame) {
+            if (s->paused && m_stack->currentIndex() == PageGame) {
                 showPage(PagePause);
-            } else if (!model->paused() && m_stack->currentIndex() == PagePause) {
+            } else if (!s->paused && m_stack->currentIndex() == PagePause) {
                 resumeFromPause();
             }
             break;
         case PROP_ID_GAME_OVER:
             m_canvas->update();
-            onGameOver(model->message());
+            onGameOver(s->message);
             break;
         case PROP_ID_SAVE_RESULT:
             m_savePage->refreshSlots();
@@ -200,40 +209,40 @@ PropertyNotification MainWindow::get_notification() {
 void MainWindow::showPage(PageIndex p) { m_stack->setCurrentIndex(p); }
 
 void MainWindow::updateTopBarColors() {
-    if (!m_vm) return;
-    const auto *model = m_vm->get_model();
-    const auto &cfg = model->config();
+    if (!m_state) return;
+    const auto &cfg = m_state->config;
     auto makeStyle = [](const QColor &c) {
         return QString("color:rgba(%1,%2,%3,%4);font-weight:bold;font-size:14px;")
             .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
     };
-    int cur = model->currentPlayer();
+    int cur = m_state->currentPlayer;
     m_p1Label->setStyleSheet(cur == 0 ? makeStyle(cfg.player1Color) : QString("color:#555;font-size:14px;"));
     m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : QString("color:#555;font-size:14px;"));
 }
 
-void MainWindow::updateCoordLabels(const GameModel *model) {
-    int cur = model->currentPlayer();
-    int idx = model->selectedSquareIndex();
-    auto sq = model->playerSquares(cur).value(idx);
+void MainWindow::updateCoordLabels() {
+    if (!m_state) return;
+    int cur = m_state->currentPlayer;
+    int idx = m_state->selectedSquareIndex;
+    auto sq = m_state->playerSquares[cur].value(idx);
     QString text = QString("(%1,%2)").arg(sq.rect.cx, 0, 'f', 1).arg(sq.rect.cy, 0, 'f', 1);
-    if (model->config().showCoordinates && !sq.destroyed) {
-        if (cur == 0) { m_coordLabel->setText(text); m_coordLabel->show(); m_coordLabel2->hide(); }
-        else          { m_coordLabel2->setText(text); m_coordLabel2->show(); m_coordLabel->hide(); }
+    if (m_state->config.showCoordinates && !sq.destroyed) {
+        if (cur == 0) { m_coordLabel->setText(text); m_coordLabel2->setText(""); }
+        else          { m_coordLabel2->setText(text); m_coordLabel->setText(""); }
     } else {
-        m_coordLabel->hide(); m_coordLabel2->hide();
+        m_coordLabel->setText(""); m_coordLabel2->setText("");
     }
 }
 
 void MainWindow::startNewGame() {
     if (m_newGameCmd) m_newGameCmd();
     updateTopBarColors();
-    if (m_vm) updateCoordLabels(m_vm->get_model());
+    updateCoordLabels();
     showPage(PageGame);
 }
 
 void MainWindow::goToConfig() {
-    if (m_vm && m_configPage) m_configPage->refresh(m_vm->get_model()->config());
+    if (m_state && m_configPage) m_configPage->refresh(m_state->config);
     showPage(PageConfig);
 }
 

@@ -1,8 +1,5 @@
 #pragma once
-
-struct Point {
-    double x, y;
-};
+#include <cmath>
 
 struct Rect {
     double cx, cy, w, h;
@@ -10,4 +7,13 @@ struct Rect {
         return px >= cx - w/2 && px <= cx + w/2 &&
                py >= cy - h/2 && py <= cy + h/2;
     }
+};
+
+struct Square {
+    Rect rect;
+    bool destroyed = false;
+
+    Square() = default;
+    Square(double cx, double cy, double w, double h)
+        : rect{cx, cy, w, h} {}
 };

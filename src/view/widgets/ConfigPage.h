@@ -7,7 +7,7 @@
 #include <QCheckBox>
 #include <QVector>
 #include <QColor>
-#include "model/GameConfig.h"
+#include "common/GameConfig.h"
 
 class ConfigPage : public QWidget {
     Q_OBJECT

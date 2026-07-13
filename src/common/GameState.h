@@ -1,0 +1,27 @@
+#pragma once
+#include "GameConfig.h"
+#include "GamePhase.h"
+#include "Square.h"
+#include "SaveInfo.h"
+#include <QVector>
+#include <QPointF>
+#include <QString>
+#include <QColor>
+
+struct GameState {
+    int currentPlayer = 0;
+    int roundNumber = 0;
+    int availablePoints = 0;
+    GamePhase phase = GamePhase::WaitingInput;
+    int selectedSquareIndex = -1;
+    QColor playerColors[2];
+    QVector<Square> playerSquares[2];
+    QVector<Square> obstacles;
+    QVector<QVector<QPointF>> history;
+    QVector<QPointF> trajectory;
+    GameConfig config;
+    QString message;
+    bool gameOver = false;
+    bool paused = false;
+    int aliveCount[2] = {0, 0};
+};

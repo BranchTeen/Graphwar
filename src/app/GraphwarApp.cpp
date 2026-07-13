@@ -7,12 +7,11 @@
 GraphwarApp::GraphwarApp()
     : m_main_wnd()
 {
-    // === Set ViewModel pointer ===
-    m_main_wnd.set_view_model(&m_view_model);
+    const GameState *state = m_view_model.get_state();
 
-    // === Wire properties ===
-    m_main_wnd.get_canvas()->set_view_model(&m_view_model);
-    m_main_wnd.get_input()->set_view_model(&m_view_model);
+    m_main_wnd.set_state(state);
+    m_main_wnd.set_cost_preview_ptr(&m_view_model.costPreview());
+    m_main_wnd.get_canvas()->set_state(state);
 
     // === Wire commands ===
     m_main_wnd.set_new_game_command(m_view_model.get_new_game_command());

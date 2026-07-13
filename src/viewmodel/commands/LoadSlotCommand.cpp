@@ -1,5 +1,5 @@
 #include "../GameViewModel.h"
-#include "model/SaveManager.h"
+#include "common/SaveManager.h"
 #include "common/property_ids.h"
 
 std::function<void(int)> GameViewModel::get_load_slot_command() {
@@ -8,6 +8,7 @@ std::function<void(int)> GameViewModel::get_load_slot_command() {
         QString text = SaveManager::readSlot(slot, &ok);
         if (!ok) return;
         if (!m_model->fromJson(text)) return;
+        syncState();
         m_costPreview = 0;
         fire(PROP_ID_COST_PREVIEW);
         fire(PROP_ID_TURN);

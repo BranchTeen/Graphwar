@@ -2,6 +2,7 @@
 #include <functional>
 #include <vector>
 #include <cassert>
+#include <cstdint>
 
 typedef std::function<void(uint32_t)> PropertyNotification;
 

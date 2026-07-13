@@ -37,11 +37,11 @@ PauseMenuPage::PauseMenuPage(QWidget *parent) : QWidget(parent) {
 }
 
 void PauseMenuPage::buildSaveSlots() {
-    auto *slotsWidget = new QWidget(this);
-    auto *slotsLayout = new QVBoxLayout(slotsWidget);
+    m_slotsWidget = new QWidget(this);
+    auto *slotsLayout = new QVBoxLayout(m_slotsWidget);
     slotsLayout->setContentsMargins(20, 20, 20, 20);
     slotsLayout->setSpacing(10);
-    slotsWidget->setStyleSheet("background:#1a1a2a;border-radius:8px;");
+    m_slotsWidget->setStyleSheet("background:#1a1a2a;border-radius:8px;");
 
     auto &bus = EventBus::instance();
     int total = bus.slotCount();
@@ -51,7 +51,7 @@ void PauseMenuPage::buildSaveSlots() {
         SaveInfo info;
         if (slot < infos.size()) info = infos[slot];
 
-        auto *row = new QWidget(slotsWidget);
+        auto *row = new QWidget(m_slotsWidget);
         auto *rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(12, 6, 12, 6);
         rowLayout->setSpacing(16);
@@ -83,7 +83,7 @@ void PauseMenuPage::buildSaveSlots() {
         slotsLayout->addWidget(row);
     }
 
-    static_cast<QVBoxLayout*>(layout())->insertWidget(2, slotsWidget, 1);
+    static_cast<QVBoxLayout*>(layout())->insertWidget(2, m_slotsWidget, 1);
 }
 
 void PauseMenuPage::onContinueClicked() {
@@ -112,9 +112,20 @@ void PauseMenuPage::onSaveClicked(int slot) {
 
 void PauseMenuPage::onSaveResult(int slot, bool ok, const QString &info) {
     if (!ok) {
-        QMessageBox::warning(this, "Save failed", QString("Could not save to slot %1.").arg(slot + 1));
+        QMessageBox::warning(this, "Operation failed", QString("Could not complete operation on slot %1.").arg(slot + 1));
         return;
     }
-    QMessageBox::information(this, "Saved", QString("Saved to slot %1.\n%2")
-        .arg(slot + 1).arg(EventBus::instance().slotPath(slot)));
+    if (info == "Saved") {
+        QMessageBox::information(this, "Saved", QString("Saved to slot %1.\n%2")
+            .arg(slot + 1).arg(EventBus::instance().slotPath(slot)));
+    }
+    if (info == "Loaded") return;
+
+    if (m_slotsWidget) {
+        m_saveSlots.clear();
+        static_cast<QVBoxLayout*>(layout())->removeWidget(m_slotsWidget);
+        m_slotsWidget->deleteLater();
+        m_slotsWidget = nullptr;
+        buildSaveSlots();
+    }
 }

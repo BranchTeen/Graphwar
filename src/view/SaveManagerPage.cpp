@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QFont>
+#include <QShowEvent>
 
 SaveManagerPage::SaveManagerPage(QWidget *parent) : QWidget(parent) {
     auto *root = new QVBoxLayout(this);
@@ -30,9 +31,9 @@ SaveManagerPage::SaveManagerPage(QWidget *parent) : QWidget(parent) {
 }
 
 void SaveManagerPage::buildSlots() {
-    auto *slotsContainer = new QWidget(this);
-    slotsContainer->setStyleSheet("background:#1a1a2a;border-radius:8px;");
-    auto *layout = new QVBoxLayout(slotsContainer);
+    m_slotsContainer = new QWidget(this);
+    m_slotsContainer->setStyleSheet("background:#1a1a2a;border-radius:8px;");
+    auto *layout = new QVBoxLayout(m_slotsContainer);
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(12);
 
@@ -44,7 +45,7 @@ void SaveManagerPage::buildSlots() {
         SaveInfo info;
         if (slot < infos.size()) info = infos[slot];
 
-        auto *row = new QWidget(slotsContainer);
+        auto *row = new QWidget(m_slotsContainer);
         auto *rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(12, 8, 12, 8);
         rowLayout->setSpacing(16);
@@ -86,7 +87,17 @@ void SaveManagerPage::buildSlots() {
         layout->addWidget(row);
     }
 
-    static_cast<QVBoxLayout*>(this->layout())->insertWidget(1, slotsContainer, 1);
+    static_cast<QVBoxLayout*>(this->layout())->insertWidget(1, m_slotsContainer, 1);
+}
+
+void SaveManagerPage::showEvent(QShowEvent *event) {
+    QWidget::showEvent(event);
+    if (m_slotsContainer) {
+        static_cast<QVBoxLayout*>(this->layout())->removeWidget(m_slotsContainer);
+        m_slotsContainer->deleteLater();
+        m_slotsContainer = nullptr;
+        buildSlots();
+    }
 }
 
 void SaveManagerPage::onLoadClicked(int slot) {
@@ -107,9 +118,16 @@ void SaveManagerPage::onBackClicked() {
 
 void SaveManagerPage::onSaveResult(int slot, bool ok, const QString &info) {
     if (!ok) {
-        QMessageBox::warning(this, "Load failed",
-            QString("Could not load slot %1.\nFile path:\n%2")
+        QMessageBox::warning(this, "Operation failed",
+            QString("Could not complete operation on slot %1.\nFile path:\n%2")
                 .arg(slot + 1).arg(EventBus::instance().slotPath(slot)));
         return;
+    }
+    if (info == "Loaded") return;
+    if (m_slotsContainer) {
+        static_cast<QVBoxLayout*>(this->layout())->removeWidget(m_slotsContainer);
+        m_slotsContainer->deleteLater();
+        m_slotsContainer = nullptr;
+        buildSlots();
     }
 }

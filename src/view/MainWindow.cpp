@@ -115,14 +115,14 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
 
     m_savePage = new SaveManagerPage(this);
     connect(m_savePage, &SaveManagerPage::backRequested, this, &MainWindow::backToStart);
-    connect(&bus, &EventBus::evtSaveResult, this, [this](int slot, bool ok, const QString &) {
-        if (ok) onGameLoaded();
+    connect(&bus, &EventBus::evtSaveResult, this, [this](int slot, bool ok, const QString &info) {
+        if (ok && info == "Loaded") onGameLoaded();
     });
 
     m_configPage = new ConfigPage(this);
     connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
-    connect(m_configPage, &ConfigPage::configSaved, this, [this, &bus](const GameConfig &cfg) {
-        emit bus.cmdSetConfig(cfg);
+    connect(m_configPage, &ConfigPage::configSaved, this, [this](const GameConfig &cfg) {
+        EventBus::instance().cmdSetConfig(cfg);
         startNewGame();
     });
 
@@ -130,7 +130,9 @@ MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent)
     connect(m_pausePage, &PauseMenuPage::backToTitle, this, &MainWindow::backToStart);
 
     connect(&bus, &EventBus::evtPausedChanged, this, [this](bool paused) {
-        if (!paused && m_stack->currentIndex() == PagePause) {
+        if (paused && m_stack->currentIndex() == PageGame) {
+            showPage(PagePause);
+        } else if (!paused && m_stack->currentIndex() == PagePause) {
             resumeFromPause();
         }
     });

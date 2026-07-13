@@ -25,4 +25,5 @@ private:
     QPushButton *m_continueBtn;
     QPushButton *m_backBtn;
     QVector<QPushButton*> m_saveSlots;
+    QWidget *m_slotsWidget = nullptr;
 };

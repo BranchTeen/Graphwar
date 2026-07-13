@@ -13,6 +13,9 @@ public:
 signals:
     void backRequested();
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private slots:
     void onLoadClicked(int slot);
     void onDeleteClicked(int slot);
@@ -21,4 +24,5 @@ private slots:
 
 private:
     void buildSlots();
+    QWidget *m_slotsContainer = nullptr;
 };

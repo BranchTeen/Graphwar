@@ -13,33 +13,32 @@ GameViewModel::~GameViewModel() {
 }
 
 void GameViewModel::forwardModelSignals() {
-    auto &bus = EventBus::instance();
-    connect(m_model, &GameModel::turnChanged, [&bus](int p) {
-        emit bus.evtTurnChanged(p);
+    connect(m_model, &GameModel::turnChanged, [](int p) {
+        EventBus::instance().evtTurnChanged(p);
     });
-    connect(m_model, &GameModel::roundChanged, [&bus](int r) {
-        emit bus.evtRoundChanged(r);
+    connect(m_model, &GameModel::roundChanged, [](int r) {
+        EventBus::instance().evtRoundChanged(r);
     });
-    connect(m_model, &GameModel::pointsChanged, [&bus](int p) {
-        emit bus.evtPointsChanged(p);
+    connect(m_model, &GameModel::pointsChanged, [](int p) {
+        EventBus::instance().evtPointsChanged(p);
     });
-    connect(m_model, &GameModel::phaseChanged, [&bus](GamePhase ph) {
-        emit bus.evtPhaseChanged(ph);
+    connect(m_model, &GameModel::phaseChanged, [](GamePhase ph) {
+        EventBus::instance().evtPhaseChanged(ph);
     });
-    connect(m_model, &GameModel::messageChanged, [&bus](const QString &msg) {
-        emit bus.evtMessageChanged(msg);
+    connect(m_model, &GameModel::messageChanged, [](const QString &msg) {
+        EventBus::instance().evtMessageChanged(msg);
     });
-    connect(m_model, &GameModel::squareHit, [&bus](int p, int idx) {
-        emit bus.evtSquareHit(p, idx);
+    connect(m_model, &GameModel::squareHit, [](int p, int idx) {
+        EventBus::instance().evtSquareHit(p, idx);
     });
-    connect(m_model, &GameModel::trajectoryUpdated, [&bus]() {
-        emit bus.evtTrajectoryUpdated();
+    connect(m_model, &GameModel::trajectoryUpdated, []() {
+        EventBus::instance().evtTrajectoryUpdated();
     });
-    connect(m_model, &GameModel::gameOver, [&bus](const QString &info) {
-        emit bus.evtGameOver(info);
+    connect(m_model, &GameModel::gameOver, [](const QString &info) {
+        EventBus::instance().evtGameOver(info);
     });
-    connect(m_model, &GameModel::pausedChanged, [&bus](bool p) {
-        emit bus.evtPausedChanged(p);
+    connect(m_model, &GameModel::pausedChanged, [](bool p) {
+        EventBus::instance().evtPausedChanged(p);
     });
 }
 

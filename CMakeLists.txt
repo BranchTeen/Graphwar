@@ -45,15 +45,15 @@ set(SOURCES
     src/view/ConfigPage.h
     src/view/ConfigPage.cpp
     src/utils/Geometry.h
-    src/utils/parser/Token.h
-    src/utils/parser/Tokenizer.h
-    src/utils/parser/Tokenizer.cpp
-    src/utils/parser/Expression.h
-    src/utils/parser/Expression.cpp
-    src/utils/parser/Parser.h
-    src/utils/parser/Parser.cpp
-    src/utils/parser/Evaluator.h
-    src/utils/parser/Evaluator.cpp
+    src/model/parser/Token.h
+    src/model/parser/Tokenizer.h
+    src/model/parser/Tokenizer.cpp
+    src/model/parser/Expression.h
+    src/model/parser/Expression.cpp
+    src/model/parser/Parser.h
+    src/model/parser/Parser.cpp
+    src/model/parser/Evaluator.h
+    src/model/parser/Evaluator.cpp
     resources/resources.qrc
 )
 

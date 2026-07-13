@@ -1,6 +1,6 @@
 #include "GameModel.h"
-#include "utils/parser/Tokenizer.h"
-#include "utils/parser/Evaluator.h"
+#include "model/parser/Tokenizer.h"
+#include "model/parser/Evaluator.h"
 #include <QRandomGenerator>
 #include <QJsonDocument>
 #include <QJsonObject>

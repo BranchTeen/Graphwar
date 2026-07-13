@@ -166,7 +166,13 @@ Graphwar/
     │   ├── GamePhase.h                     # 游戏阶段枚举（WaitingInput / Animating / RoundEnd / GameOver）
     │   ├── Player.h                        # 玩家数据（id、颜色、方块列表）
     │   ├── Square.h                        # 方块数据（坐标、大小、存活状态）
-    │   └── SaveInfo.h/cpp                  # 存档元信息（slot、exists、roundNumber、currentPlayer、savedAt、displayTime）
+    │   ├── SaveInfo.h/cpp                  # 存档元信息（slot、exists、roundNumber、currentPlayer、savedAt、displayTime）
+    │   └── parser/                         # 数学表达式解析器（仅被 Model 层调用）
+    │       ├── Token.h                     # Token 类型定义（Number / Variable / 运算符 / 数学函数 / Paren / End）
+    │       ├── Tokenizer.h/cpp             # 词法分析器（字符串 → Token 列表）
+    │       ├── Expression.h/cpp            # AST 节点定义（NumberExpr / VariableExpr / BinaryExpr / UnaryExpr）及 eval / cost 实现
+    │       ├── Parser.h/cpp                # 递归下降解析器（Token 列表 → AST）
+    │       └── Evaluator.h/cpp             # 对外接口：evaluate(expr, x) 求值、calculateCost(expr) 计费
     ├── viewmodel/                          # ViewModel 层：业务逻辑 + 数据适配
     │   ├── GameViewModel.h/cpp             # 核心 ViewModel：持有 Model+GameConfig，暴露只读接口（currentPlayer/roundNumber/availablePoints/playerColor/playerSquares/obstacles/historyTrajectory/config 等），通过 signals/slots 与 View 通信
     │   └── SaveManager.h/cpp               # 存档文件读写（三槽位 JSON 读写，位于可执行文件同目录 saves/）
@@ -178,13 +184,7 @@ Graphwar/
     │   ├── SaveManagerPage.h/cpp           # 存档管理页（三槽位 Load/Delete，通过 ViewModel 接口操作）
     │   └── PauseMenuPage.h/cpp             # 暂停菜单（继续/保存到三槽位/返回标题，通过 ViewModel 接口操作）
     └── utils/                              # 工具层：通用算法与结构
-        ├── Geometry.h                      # Rect（矩形数据结构 + 矩形包含判定）
-        └── parser/                         # 数学表达式解析器（独立工具模块，被 ViewModel 调用）
-            ├── Token.h                     # Token 类型定义（Number / Variable / Plus / Minus / Multiply / Divide / Power / Sin / Cos / Tan / Asin / Acos / Atan / Sqrt / Abs / Log / Ln / Exp / LParen / RParen / End / Unknown）
-            ├── Tokenizer.h/cpp             # 词法分析器（字符串 → Token 列表）
-            ├── Expression.h/cpp            # AST 节点定义（NumberExpr / NegateExpr / VariableExpr / BinaryExpr / UnaryExpr）及 eval / cost 实现
-            ├── Parser.h/cpp                # 递归下降解析器（Token 列表 → AST）
-            └── Evaluator.h/cpp             # 对外接口：evaluate(expr, x) 求值、calculateCost(expr) 计费
+        └── Geometry.h                      # Rect（矩形数据结构 + 矩形包含判定）
 ```
 
 **MVVM 职责划分：**
@@ -194,7 +194,7 @@ Graphwar/
 | **Model** | 纯数据容器，无业务逻辑，可被序列化/反序列化 | `GameModel`, `GameConfig`, `GamePhase`, `Player`, `Square`, `SaveInfo` |
 | **ViewModel** | 持有 Model + GameConfig，封装全部游戏/配置/存档逻辑，通过只读访问器和 signal 暴露状态，通过 slot 接收用户操作 | `GameViewModel`, `SaveManager` |
 | **View** | 被动渲染，通过信号绑定 ViewModel 的属性变化，用户操作调用 ViewModel 的槽函数，不直接读写 Model | `MainWindow`, `GameCanvas`, `FunctionInput`, `ConfigPage`, `SaveManagerPage`, `PauseMenuPage` |
-| **Utils** | 通用工具（与业务逻辑无关） | `Geometry.h`, `utils/parser/*` |
+| **Utils** | 通用工具（与业务逻辑无关） | `Geometry.h` |
 
 **ViewModel 与 View 之间的关键接口（不完全清单）：**
 

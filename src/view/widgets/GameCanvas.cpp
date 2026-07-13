@@ -73,10 +73,15 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                 p.drawRect(r.adjusted(-3, -3, 3, 3));
 
                 if (cfg.showCoordinates) {
-                    p.setPen(QColor(200, 200, 200));
-                    p.setFont(QFont("Arial", 9));
+                    QFont coordFont("Arial", 9);
+                    p.setFont(coordFont);
                     QString coord = QString("(%1,%2)").arg(sq.rect.cx, 0, 'f', 1).arg(sq.rect.cy, 0, 'f', 1);
-                    p.drawText(r.bottomLeft() + QPointF(3, 15), coord);
+                    QPointF pos = r.bottomLeft() + QPointF(3, 15);
+                    QFontMetrics fm(coordFont);
+                    QRectF bg(pos.x(), pos.y() - fm.ascent(), fm.horizontalAdvance(coord), fm.height());
+                    p.fillRect(bg, QColor(0, 0, 0, 160));
+                    p.setPen(QColor(200, 200, 200));
+                    p.drawText(pos, coord);
                 }
             }
         }

@@ -338,7 +338,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 不使用 `%APPDATA%` 或 `~/.local/share/`，确保三个平台一致行为
 - 通过 `SaveManager::savesDir()` 计算路径 = `QCoreApplication::applicationDirPath() + "/saves"`
 - `SaveManager` 是纯静态工具类（Model 层），提供 `writeSlot` / `readSlot` / `slotInfo` / `deleteSlot`
-- 存档操作流程：View 发射 `cmdSaveToSlot` / `cmdLoadFromSlot` / `cmdDeleteSlot` → ViewModel 处理 → SaveManager 文件 IO → 发射 `evtSaveResult(slot, ok, info)` → View 响应（刷新 UI / 导航 / 弹窗）
+- 存档操作流程：View 调用 `m_saveSlotCmd(slot)` / `m_loadSlotCmd(slot)` / `m_deleteSlotCmd(slot)` → ViewModel 处理 → SaveManager 文件 IO → `fire(PROP_ID_SAVE_RESULT)` → 通知回调刷新 UI / 导航 / 弹窗
 - 存档字段请参考上面"存档系统"小节
 
 ### 6. UI 布局

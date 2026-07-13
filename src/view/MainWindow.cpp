@@ -6,24 +6,21 @@
 #include <QPushButton>
 #include <QDialog>
 #include <QFont>
+#include "viewmodel/GameViewModel.h"
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
+MainWindow::MainWindow(GameViewModel *vm, QWidget *parent) : QMainWindow(parent), m_vm(vm) {
     setWindowTitle("Graphwar");
     resize(900, 700);
     setStyleSheet("background:#0f0f1a;color:#ddd;");
 
-    m_vm = new GameViewModel(this);
-
-    // Game page
-    m_canvas = new GameCanvas(m_vm, this);
-    m_input  = new FunctionInput(m_vm, this);
+    m_canvas = new GameCanvas(this);
+    m_input  = new FunctionInput(this);
 
     auto *gamePage = new QWidget(this);
     auto *gameLayout = new QVBoxLayout(gamePage);
     gameLayout->setContentsMargins(0, 0, 0, 0);
     gameLayout->setSpacing(0);
 
-    // Top bar
     auto *topBar = new QWidget(this);
     auto *topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(10, 5, 10, 5);
@@ -48,21 +45,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     gameLayout->addWidget(m_canvas, 1);
     gameLayout->addWidget(m_input);
 
-    connect(m_vm, &GameViewModel::turnChanged, this, [this](int player) {
+    auto &bus = EventBus::instance();
+    connect(&bus, &EventBus::evtTurnChanged, this, [this](int) {
         updateTopBarColors();
     });
-    connect(m_vm, &GameViewModel::roundChanged, this, [=](int r) {
+    connect(&bus, &EventBus::evtRoundChanged, this, [=](int r) {
         roundLabel->setText(QString("Round %1").arg(r));
     });
-    connect(m_vm, &GameViewModel::pointsChanged, this, [=](int pts) {
+    connect(&bus, &EventBus::evtPointsChanged, this, [=](int pts) {
         pointsLabel->setText(QString("Points: %1").arg(pts));
     });
-    connect(m_vm, &GameViewModel::trajectoryUpdated, m_canvas, QOverload<>::of(&QWidget::update));
-    connect(m_vm, &GameViewModel::phaseChanged,    m_canvas, QOverload<>::of(&QWidget::update));
-    connect(m_vm, &GameViewModel::turnChanged,     m_canvas, QOverload<>::of(&QWidget::update));
-    connect(m_vm, &GameViewModel::gameOver,        m_canvas, QOverload<>::of(&QWidget::update));
+    connect(&bus, &EventBus::evtTrajectoryUpdated, m_canvas, QOverload<>::of(&QWidget::update));
+    connect(&bus, &EventBus::evtPhaseChanged,      m_canvas, QOverload<>::of(&QWidget::update));
+    connect(&bus, &EventBus::evtTurnChanged,       m_canvas, QOverload<>::of(&QWidget::update));
+    connect(&bus, &EventBus::evtGameOver,          m_canvas, QOverload<>::of(&QWidget::update));
 
-    // Start page
     auto *startPage = new QWidget(this);
     startPage->setObjectName("startPage");
     startPage->setStyleSheet(
@@ -113,43 +110,39 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     startLayout->addWidget(loadGameBtn, 0, Qt::AlignCenter);
     startLayout->addStretch();
 
-    // NEW GAME 不再直接进入游戏，而是先进入 Config 页
-    // 用户在 Config 页点击"START GAME"后再实际开始游戏
     connect(newGameBtn, &QPushButton::clicked, this, &MainWindow::goToConfig);
     connect(loadGameBtn, &QPushButton::clicked, this, &MainWindow::goToSaveManager);
 
-    // Save manager page
-    m_savePage = new SaveManagerPage(m_vm, this);
-    connect(m_savePage, &SaveManagerPage::backToStart, this, &MainWindow::backToStart);
-    connect(m_savePage, &SaveManagerPage::gameLoaded, this, &MainWindow::onGameLoaded);
+    m_savePage = new SaveManagerPage(this);
+    connect(m_savePage, &SaveManagerPage::backRequested, this, &MainWindow::backToStart);
+    connect(&bus, &EventBus::evtSaveResult, this, [this](int slot, bool ok, const QString &) {
+        if (ok) onGameLoaded();
+    });
 
-    // Config page
     m_configPage = new ConfigPage(this);
     connect(m_configPage, &ConfigPage::backToStart, this, &MainWindow::backToStart);
-    // "Save" 按钮现在的语义是"进入游戏"：先把配置应用到 VM，再启动新游戏
-    connect(m_configPage, &ConfigPage::configSaved, this, [this](const GameConfig &cfg) {
-        m_vm->setConfig(cfg);
+    connect(m_configPage, &ConfigPage::configSaved, this, [this, &bus](const GameConfig &cfg) {
+        emit bus.cmdSetConfig(cfg);
         startNewGame();
     });
 
-    // Pause page
-    m_pausePage = new PauseMenuPage(m_vm, this);
-    connect(m_pausePage, &PauseMenuPage::resumeGame, this, &MainWindow::resumeFromPause);
-    connect(m_pausePage, &PauseMenuPage::backToStart, this, &MainWindow::backToStart);
+    m_pausePage = new PauseMenuPage(this);
+    connect(m_pausePage, &PauseMenuPage::backToTitle, this, &MainWindow::backToStart);
 
-    
-    connect(m_input, &FunctionInput::pauseClicked, this, &MainWindow::goToPause);
+    connect(&bus, &EventBus::evtPausedChanged, this, [this](bool paused) {
+        if (!paused && m_stack->currentIndex() == PagePause) {
+            resumeFromPause();
+        }
+    });
 
-    // 游戏结束 → 弹出"重新开始"对话框（这条 connect 必须在 MainWindow 构造时绑定，否则 gameOver 信号无响应）
-    connect(m_vm, &GameViewModel::gameOver, this, &MainWindow::onGameOver);
+    connect(&bus, &EventBus::evtGameOver, this, &MainWindow::onGameOver);
 
-    // Stack
     m_stack = new QStackedWidget(this);
-    m_stack->addWidget(startPage);     // 0: StartPage
-    m_stack->addWidget(gamePage);      // 1: GamePage
-    m_stack->addWidget(m_savePage);    // 2: SaveManagerPage
-    m_stack->addWidget(m_pausePage);   // 3: PausePage
-    m_stack->addWidget(m_configPage);  // 4: ConfigPage
+    m_stack->addWidget(startPage);
+    m_stack->addWidget(gamePage);
+    m_stack->addWidget(m_savePage);
+    m_stack->addWidget(m_pausePage);
+    m_stack->addWidget(m_configPage);
     m_stack->setCurrentIndex(PageStart);
     setCentralWidget(m_stack);
 }
@@ -159,48 +152,45 @@ void MainWindow::showPage(PageIndex p) {
 }
 
 void MainWindow::updateTopBarColors() {
-    const auto &cfg = m_vm->config();
+    auto &bus = EventBus::instance();
+    const auto &cfg = bus.config();
     auto makeStyle = [](const QColor &c) {
         return QString("color:rgba(%1,%2,%3,%4);font-weight:bold;font-size:14px;")
             .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
     };
     auto dimStyle = QString("color:#555;font-size:14px;");
-    int cur = m_vm->currentPlayer();
+    int cur = bus.currentPlayer();
     m_p1Label->setStyleSheet(cur == 0 ? makeStyle(cfg.player1Color) : dimStyle);
     m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : dimStyle);
 }
 
 void MainWindow::startNewGame() {
-    m_vm->newGame();
+    emit EventBus::instance().cmdNewGame();
     updateTopBarColors();
     showPage(PageGame);
 }
 
 void MainWindow::goToConfig() {
-    // 每次进入 Config 页面时，以当前 vm 中的 GameConfig 回显表单
-    // —— 这样用户可以在存档加载后看到保存时的设置（含 Show grid lines 等）
-    if (m_vm && m_configPage) m_configPage->refresh(m_vm->config());
+    if (m_configPage) m_configPage->refresh(EventBus::instance().config());
     showPage(PageConfig);
 }
 
 void MainWindow::goToSaveManager() {
-    m_savePage->refresh();
     showPage(PageSaveMgr);
 }
 
 void MainWindow::goToPause() {
-    m_vm->pause();
-    m_pausePage->refresh();
+    emit EventBus::instance().cmdPause();
     showPage(PagePause);
 }
 
 void MainWindow::resumeFromPause() {
-    m_vm->resume();
+    emit EventBus::instance().cmdResume();
     showPage(PageGame);
 }
 
 void MainWindow::backToStart() {
-    m_vm->resume();   
+    emit EventBus::instance().cmdResume();
     showPage(PageStart);
 }
 
@@ -247,7 +237,7 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
 
     connect(playAgainBtn, &QPushButton::clicked, dialog, [=]() {
         dialog->accept();
-        m_vm->newGame();
+        emit EventBus::instance().cmdNewGame();
         showPage(PageGame);
     });
     connect(backToStartBtn, &QPushButton::clicked, dialog, [=]() {

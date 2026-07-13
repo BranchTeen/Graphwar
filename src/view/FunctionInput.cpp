@@ -2,21 +2,21 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QTimer>
+#include <QFont>
 
-FunctionInput::FunctionInput(GameViewModel *vm, QWidget *parent)
-    : QWidget(parent) {
-    setViewModel(vm);
-
+FunctionInput::FunctionInput(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout(this);
     layout->setContentsMargins(10, 5, 10, 5);
 
-    m_pauseBtn = new QPushButton("⏸ Pause", this);
-    m_pauseBtn->setFont(QFont("Consolas", 11));
-    m_pauseBtn->setStyleSheet(
+    auto *pauseBtn = new QPushButton("⏸ Pause", this);
+    pauseBtn->setFont(QFont("Consolas", 11));
+    pauseBtn->setStyleSheet(
         "QPushButton{background:#556;color:#fff;padding:6px 12px;border-radius:4px;}"
         "QPushButton:hover{background:#779;}");
-    connect(m_pauseBtn, &QPushButton::clicked, this, &FunctionInput::pauseClicked);
-    layout->addWidget(m_pauseBtn);
+    connect(pauseBtn, &QPushButton::clicked, []() {
+        emit EventBus::instance().cmdPause();
+    });
+    layout->addWidget(pauseBtn);
 
     m_input = new QLineEdit(this);
     m_input->setPlaceholderText("f(x) = ...   (Enter to fire)");
@@ -27,54 +27,56 @@ FunctionInput::FunctionInput(GameViewModel *vm, QWidget *parent)
     m_costLabel->setFont(QFont("Consolas", 12));
     layout->addWidget(m_costLabel);
 
-    m_launchBtn = new QPushButton("Fire!", this);
-    m_launchBtn->setFont(QFont("Consolas", 12, QFont::Bold));
-    m_launchBtn->setDefault(true);   // 回车默认触发
-    m_launchBtn->setStyleSheet(
+    m_fireBtn = new QPushButton("Fire!", this);
+    m_fireBtn->setFont(QFont("Consolas", 12, QFont::Bold));
+    m_fireBtn->setDefault(true);
+    m_fireBtn->setStyleSheet(
         "QPushButton { background: #4a7; color: white; padding: 6px 20px; border-radius: 4px; }"
         "QPushButton:disabled { background: #555; color: #888; }");
-    layout->addWidget(m_launchBtn);
+    layout->addWidget(m_fireBtn);
 
-    m_msgLabel = new QLabel(this);
-    m_msgLabel->setFont(QFont("Consolas", 11));
-    layout->addWidget(m_msgLabel, 1);
+    m_messageLabel = new QLabel(this);
+    m_messageLabel->setFont(QFont("Consolas", 11));
+    layout->addWidget(m_messageLabel, 1);
 
     connect(m_input, &QLineEdit::textChanged, this, &FunctionInput::onTextChanged);
     connect(m_input, &QLineEdit::returnPressed, this, &FunctionInput::onLaunch);
-    connect(m_launchBtn, &QPushButton::clicked, this, &FunctionInput::onLaunch);
-}
+    connect(m_fireBtn, &QPushButton::clicked, this, &FunctionInput::onLaunch);
 
-void FunctionInput::setViewModel(GameViewModel *vm) {
-    m_vm = vm;
-    if (m_vm) {
-        connect(m_vm, &GameViewModel::phaseChanged, this, &FunctionInput::onPhaseChanged);
-        connect(m_vm, &GameViewModel::turnChanged, this, [this](int) {
-            m_input->clear();
-        });
-        connect(m_vm, &GameViewModel::messageChanged, this, [this](const QString &msg) {
-            m_msgLabel->setText(msg);
-        });
-        connect(m_vm, &GameViewModel::costPreviewChanged, this, [this](int cost) {
-            m_costLabel->setText(QString("Cost: %1").arg(cost));
-        });
-    }
+    auto &bus = EventBus::instance();
+    connect(&bus, &EventBus::evtPhaseChanged, this, &FunctionInput::onPhaseChanged);
+    connect(&bus, &EventBus::evtTurnChanged, this, [this](int) {
+        m_input->clear();
+    });
+    connect(&bus, &EventBus::evtMessageChanged, this, &FunctionInput::onMessageChanged);
+    connect(&bus, &EventBus::evtCostPreviewChanged, this, &FunctionInput::onCostPreviewChanged);
 }
 
 void FunctionInput::onTextChanged(const QString &text) {
-    if (m_vm) m_vm->updateCostPreview(text);
+    emit EventBus::instance().cmdUpdateCostPreview(text);
 }
 
 void FunctionInput::onLaunch() {
-    if (m_vm) m_vm->launch(m_input->text());
+    emit EventBus::instance().cmdLaunch(m_input->text());
 }
 
 void FunctionInput::onPhaseChanged(GamePhase phase) {
     bool enabled = (phase == GamePhase::WaitingInput);
     m_input->setEnabled(enabled);
-    m_launchBtn->setEnabled(enabled);
+    m_fireBtn->setEnabled(enabled);
     if (phase == GamePhase::RoundEnd || phase == GamePhase::GameOver) {
-        if (m_vm && phase == GamePhase::RoundEnd) {
-            QTimer::singleShot(1500, m_vm, &GameViewModel::nextTurn);
+        if (phase == GamePhase::RoundEnd) {
+            QTimer::singleShot(1500, []() {
+                emit EventBus::instance().cmdNextTurn();
+            });
         }
     }
+}
+
+void FunctionInput::onMessageChanged(const QString &msg) {
+    m_messageLabel->setText(msg);
+}
+
+void FunctionInput::onCostPreviewChanged(int cost) {
+    m_costLabel->setText(QString("Cost: %1").arg(cost));
 }

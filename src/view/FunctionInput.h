@@ -3,27 +3,24 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QLabel>
-#include "viewmodel/GameViewModel.h"
+#include <QHBoxLayout>
+#include "common/EventBus.h"
 
 class FunctionInput : public QWidget {
     Q_OBJECT
 public:
-    explicit FunctionInput(GameViewModel *vm, QWidget *parent = nullptr);
-    void setViewModel(GameViewModel *vm);
-
-signals:
-    void pauseClicked();
+    explicit FunctionInput(QWidget *parent = nullptr);
 
 private slots:
     void onTextChanged(const QString &text);
     void onLaunch();
     void onPhaseChanged(GamePhase phase);
+    void onMessageChanged(const QString &msg);
+    void onCostPreviewChanged(int cost);
 
 private:
-    GameViewModel *m_vm = nullptr;
     QLineEdit *m_input;
-    QPushButton *m_launchBtn;
-    QPushButton *m_pauseBtn;
+    QPushButton *m_fireBtn;
+    QLabel *m_messageLabel;
     QLabel *m_costLabel;
-    QLabel *m_msgLabel;
 };

@@ -1,23 +1,28 @@
 #pragma once
 #include <QWidget>
-#include "viewmodel/GameViewModel.h"
+#include <QPushButton>
+#include <QLabel>
+#include <QVBoxLayout>
+#include "common/EventBus.h"
 
-// 暂停菜单页：继续 / 保存到 3 个槽位 / 返回标题
 class PauseMenuPage : public QWidget {
     Q_OBJECT
 public:
-    explicit PauseMenuPage(GameViewModel *vm, QWidget *parent = nullptr);
-
-    void refresh();
+    explicit PauseMenuPage(QWidget *parent = nullptr);
 
 signals:
-    void resumeGame();       // 继续游戏
-    void backToStart();      // 返回标题
+    void backToTitle();
+
+private slots:
+    void onContinueClicked();
+    void onBackClicked();
+    void onSaveClicked(int slot);
+    void onSaveResult(int slot, bool ok, const QString &info);
 
 private:
-    void rebuild();
-    void saveTo(int slot);
+    void buildSaveSlots();
 
-    GameViewModel *m_vm = nullptr;
-    QWidget *m_slotsContainer = nullptr;
+    QPushButton *m_continueBtn;
+    QPushButton *m_backBtn;
+    QVector<QPushButton*> m_saveSlots;
 };

@@ -3,9 +3,7 @@
 #include <QPainterPath>
 #include <cmath>
 
-GameCanvas::GameCanvas(GameViewModel *vm, QWidget *parent)
-    : QWidget(parent), m_vm(vm)
-{
+GameCanvas::GameCanvas(QWidget *parent) : QWidget(parent) {
     setMinimumSize(600, 400);
 }
 
@@ -20,7 +18,7 @@ QPointF GameCanvas::worldToScreen(double wx, double wy) const {
 }
 
 void GameCanvas::paintEvent(QPaintEvent *) {
-    if (!m_vm) return;
+    auto &bus = EventBus::instance();
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
@@ -29,11 +27,9 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     m_oy = h / 2.0;
     m_scale = std::min(w, h) / 40.0;
 
-    // 背景
     p.fillRect(rect(), QColor(20, 20, 30));
 
-    // 网格线
-    if (m_vm->showGridLines()) {
+    if (bus.showGridLines()) {
         p.setPen(QPen(QColor(35, 35, 50), 1));
         for (int gx = -20; gx <= 20; gx += 5)
             p.drawLine(worldToScreen(gx, -30), worldToScreen(gx, 30));
@@ -41,143 +37,94 @@ void GameCanvas::paintEvent(QPaintEvent *) {
             p.drawLine(worldToScreen(-30, gy), worldToScreen(30, gy));
     }
 
-    // 坐标轴
     p.setPen(QPen(QColor(180, 180, 200), 2));
     auto ox = worldToScreen(0, 0);
     p.drawLine(QPointF(0, ox.y()), QPointF(w, ox.y()));
     p.drawLine(QPointF(ox.x(), 0), QPointF(ox.x(), h));
 
-    // 玩家方块 —— 通过 ViewModel 接口获取副本
-    int selIdx = m_vm->selectedSquareIndex();
-    int curPlayer = m_vm->currentPlayer();
+    int selIdx = bus.selectedSquareIndex();
+    int curPlayer = bus.currentPlayer();
 
     for (int pl = 0; pl < 2; ++pl) {
-        QColor playerColor = m_vm->playerColor(pl);
-        QVector<Square> squares = m_vm->playerSquares(pl);
+        QColor playerColor = bus.playerColor(pl);
+        QVector<Square> squares = bus.playerSquares(pl);
         for (int i = 0; i < squares.size(); ++i) {
-            const Square &sq = squares[i];
-            auto tl = worldToScreen(sq.rect.cx - sq.rect.w / 2, sq.rect.cy + sq.rect.h / 2);
-            auto br = worldToScreen(sq.rect.cx + sq.rect.w / 2, sq.rect.cy - sq.rect.h / 2);
-            QRectF r(tl.x(), tl.y(), br.x() - tl.x(), br.y() - tl.y());
+            auto &sq = squares[i];
+            QPointF tl = worldToScreen(sq.rect.cx - sq.rect.w/2, sq.rect.cy + sq.rect.h/2);
+            QPointF br = worldToScreen(sq.rect.cx + sq.rect.w/2, sq.rect.cy - sq.rect.h/2);
+            QRectF r(tl, br);
 
-            QColor c = playerColor;
             if (sq.destroyed) {
-                c = QColor(80, 80, 80, 120);
+                p.fillRect(r, QColor(60, 60, 60));
+                p.setPen(QPen(QColor(100, 100, 100), 1));
+                p.drawRect(r);
             } else {
-                c.setAlpha(160);
+                p.fillRect(r, playerColor);
             }
-            p.fillRect(r, c);
-            p.setPen(QPen(playerColor.darker(130), 1.5));
-            p.drawRect(r);
 
-            // 选中方块高亮 + 坐标标签
-            if (pl == curPlayer && i == selIdx && !sq.destroyed) {
-                p.save();
-                p.setPen(QPen(Qt::white, 2, Qt::DashLine));
-                p.drawRect(r.adjusted(-2, -2, 2, 2));
+            if (!sq.destroyed && pl == curPlayer && i == selIdx) {
+                p.setPen(QPen(QColor(255, 255, 255), 2, Qt::DashLine));
+                p.drawRect(r.adjusted(-3, -3, 3, 3));
 
-                if (m_vm->showCoordinates()) {
-                    QString label = QString("(%1, %2)")
-                        .arg(sq.rect.cx, 0, 'f', 2)
-                        .arg(sq.rect.cy, 0, 'f', 2);
-                    QFont f = p.font();
-                    f.setPointSize(10); f.setBold(true);
-                    p.setFont(f);
-
-                    QFontMetricsF fm(f);
-                    qreal textW = fm.horizontalAdvance(label);
-                    qreal textH = fm.height();
-                    QPointF labelPos(r.right() + 8, r.top() - textH / 2);
-
-                    if (labelPos.x() + textW + 6 > width())
-                        labelPos.setX(r.left() - textW - 14);
-                    if (labelPos.y() < 4) labelPos.setY(4);
-                    if (labelPos.y() + textH + 4 > height()) labelPos.setY(height() - textH - 4);
-
-                    QRectF bg(labelPos.x() - 4, labelPos.y() - 2, textW + 8, textH + 4);
-                    p.setPen(Qt::NoPen);
-                    p.setBrush(QColor(0, 0, 0, 180));
-                    p.drawRoundedRect(bg, 4, 4);
-                    p.setPen(Qt::white);
-                    p.drawText(QRectF(labelPos.x(), labelPos.y(), textW, textH),
-                               Qt::AlignLeft | Qt::AlignVCenter, label);
+                if (bus.showCoordinates()) {
+                    p.setPen(QColor(200, 200, 200));
+                    p.setFont(QFont("Arial", 9));
+                    QString coord = QString("(%1,%2)").arg(sq.rect.cx, 0, 'f', 1).arg(sq.rect.cy, 0, 'f', 1);
+                    p.drawText(r.bottomLeft() + QPointF(3, 15), coord);
                 }
-                p.restore();
             }
         }
     }
 
-    // 障碍物 —— 通过 ViewModel 接口获取
-    QVector<Square> obstacles = m_vm->obstacles();
-    for (const auto &ob : obstacles) {
-        auto tl = worldToScreen(ob.rect.cx - ob.rect.w / 2, ob.rect.cy + ob.rect.h / 2);
-        auto br = worldToScreen(ob.rect.cx + ob.rect.w / 2, ob.rect.cy - ob.rect.h / 2);
-        QRectF r(tl.x(), tl.y(), br.x() - tl.x(), br.y() - tl.y());
+    QVector<Square> obstacles = bus.obstacles();
+    for (auto &obs : obstacles) {
+        QPointF tl = worldToScreen(obs.rect.cx - obs.rect.w/2, obs.rect.cy + obs.rect.h/2);
+        QPointF br = worldToScreen(obs.rect.cx + obs.rect.w/2, obs.rect.cy - obs.rect.h/2);
+        QRectF r(tl, br);
 
-        if (ob.destroyed) {
-            p.save();
-            p.setPen(QPen(QColor(100, 100, 100), 1.5, Qt::DashLine));
-            p.setBrush(Qt::NoBrush);
+        if (obs.destroyed) {
+            p.setPen(QPen(QColor(80, 80, 80), 1, Qt::DashLine));
             p.drawRect(r);
-            p.restore();
         } else {
-            p.save();
-            p.setBrush(QColor(120, 120, 120, 200));
-            p.setPen(QPen(QColor(60, 60, 60), 2));
+            p.fillRect(r, QColor(120, 120, 120));
+            p.setPen(QPen(QColor(50, 50, 50), 1));
             p.drawRect(r);
-            p.restore();
         }
     }
 
-    // 历史轨迹（上一轮）
-    QVector<QPointF> history = m_vm->historyTrajectory();
-    if (history.size() >= 2) {
-        p.setPen(QPen(QColor(150, 150, 170, 60), 1.5));
-        QPainterPath path;
-        path.moveTo(worldToScreen(history[0].x(), history[0].y()));
+    QVector<QPointF> history = bus.historyTrajectory();
+    if (!history.isEmpty()) {
+        p.setPen(QPen(QColor(100, 100, 100), 1));
         for (int i = 1; i < history.size(); ++i)
-            path.lineTo(worldToScreen(history[i].x(), history[i].y()));
-        p.drawPath(path);
+            p.drawLine(worldToScreen(history[i-1].x(), history[i-1].y()),
+                       worldToScreen(history[i].x(), history[i].y()));
     }
 
-    // 当前轨迹
-    QVector<QPointF> traj = m_vm->trajectory();
+    QVector<QPointF> traj = bus.trajectory();
     if (!traj.isEmpty()) {
-        QPainterPath path;
-        path.moveTo(worldToScreen(traj[0].x(), traj[0].y()));
+        QColor playerColor = bus.playerColor(curPlayer);
+        p.setPen(QPen(playerColor, 2));
         for (int i = 1; i < traj.size(); ++i)
-            path.lineTo(worldToScreen(traj[i].x(), traj[i].y()));
-        QColor trajColor = (curPlayer == 0) ? QColor(100, 180, 255) : QColor(255, 120, 100);
-        p.setPen(QPen(trajColor, 2.5));
-        p.drawPath(path);
-
-        // 子弹头
-        auto head = traj.back();
-        auto sh = worldToScreen(head.x(), head.y());
-        p.setBrush(trajColor);
-        p.setPen(Qt::NoPen);
-        p.drawEllipse(sh, 6, 6);
+            p.drawLine(worldToScreen(traj[i-1].x(), traj[i-1].y()),
+                       worldToScreen(traj[i].x(), traj[i].y()));
     }
 
-    // 回合与玩家信息显示
-    p.setPen(Qt::white);
-    QFont font = p.font();
-    font.setPointSize(12);
-    p.setFont(font);
-    QString info = QString("P1: %1  |  Round %2  |  P2: %3")
-        .arg(m_vm->aliveCount(0))
-        .arg(m_vm->roundNumber())
-        .arg(m_vm->aliveCount(1));
-    p.drawText(QRect(10, 10, w - 20, 30), Qt::AlignLeft, info);
+    if (!traj.isEmpty()) {
+        QPointF bullet = worldToScreen(traj.last().x(), traj.last().y());
+        p.setBrush(QBrush(bus.playerColor(curPlayer)));
+        p.setPen(QPen(QColor(255, 255, 255), 1));
+        p.drawEllipse(bullet, 5, 5);
+    }
 
-    // 游戏结束遮罩
-    if (m_vm->isGameOver()) {
-        p.save();
-        p.setPen(QPen(QColor(74, 170, 255), 3));
-        QFont big = p.font();
-        big.setPointSize(48); big.setBold(true);
-        p.setFont(big);
-        p.drawText(rect(), Qt::AlignCenter, "GAME OVER");
-        p.restore();
+    if (bus.isGameOver()) {
+        p.fillRect(rect(), QColor(0, 0, 0, 180));
+        p.setPen(QPen(QColor(255, 255, 255), 3));
+        p.setFont(QFont("Arial", 24, QFont::Bold));
+        QString winner = QString("PLAYER %1 WINS!\nAlive: %2 vs %3\nRound %4")
+            .arg(curPlayer + 1)
+            .arg(bus.aliveCount(0))
+            .arg(bus.aliveCount(1))
+            .arg(bus.roundNumber());
+        p.drawText(rect(), Qt::AlignCenter, winner);
     }
 }

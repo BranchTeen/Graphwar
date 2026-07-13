@@ -8,4 +8,7 @@ public:
 private:
     int precedence(const std::string &op) const;
     bool rightAssoc(const std::string &op) const;
+    static bool isFunction(TokenType t);
+    static bool isOperator(TokenType t);
+    static std::string tokenToString(TokenType t);
 };

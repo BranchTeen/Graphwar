@@ -3,151 +3,171 @@
 
 GameViewModel::GameViewModel(QObject *parent) : QObject(parent) {
     m_model = new GameModel(this);
-
-    // === 把 Model 的信号桥接到 ViewModel → View ===
-    // View 层始终只连接 ViewModel 的 signals，保持单向依赖
-    connect(m_model, &GameModel::turnChanged,         this, &GameViewModel::turnChanged);
-    connect(m_model, &GameModel::roundChanged,        this, &GameViewModel::roundChanged);
-    connect(m_model, &GameModel::pointsChanged,       this, &GameViewModel::pointsChanged);
-    connect(m_model, &GameModel::phaseChanged,        this, &GameViewModel::phaseChanged);
-    connect(m_model, &GameModel::messageChanged,      this, &GameViewModel::messageChanged);
-    connect(m_model, &GameModel::squareHit,           this, &GameViewModel::squareHit);
-    connect(m_model, &GameModel::trajectoryUpdated,   this, &GameViewModel::trajectoryUpdated);
-    connect(m_model, &GameModel::gameOver,            this, &GameViewModel::gameOver);
-    connect(m_model, &GameModel::pausedChanged,       this, &GameViewModel::pausedChanged);
+    forwardModelSignals();
+    registerGetters();
+    connectCommands();
 }
 
-// ===================== 状态查询（全部转发到 Model） =====================
-int GameViewModel::currentPlayer() const   { return m_model->currentPlayer(); }
-int GameViewModel::roundNumber() const     { return m_model->roundNumber(); }
-int GameViewModel::availablePoints() const { return m_model->availablePoints(); }
-int GameViewModel::costPreview() const     { return m_costPreview; }
-GamePhase GameViewModel::phase() const     { return m_model->phase(); }
-QString GameViewModel::message() const     { return m_model->message(); }
-bool GameViewModel::paused() const         { return m_model->paused(); }
-
-QColor GameViewModel::playerColor(int player) const { return m_model->playerColor(player); }
-int GameViewModel::aliveCount(int player) const      { return m_model->aliveCount(player); }
-
-int GameViewModel::totalSquaresPerPlayer() const {
-    return static_cast<int>(m_model->playerSquares(m_model->currentPlayer()).size());
+GameViewModel::~GameViewModel() {
+    // EventBus 是单例，不需要手动断开
 }
 
-int GameViewModel::selectedSquareIndex() const { return m_model->selectedSquareIndex(); }
-
-QVector<Square> GameViewModel::playerSquares(int player) const {
-    return m_model->playerSquares(player);
+void GameViewModel::forwardModelSignals() {
+    auto &bus = EventBus::instance();
+    connect(m_model, &GameModel::turnChanged, [&bus](int p) {
+        emit bus.evtTurnChanged(p);
+    });
+    connect(m_model, &GameModel::roundChanged, [&bus](int r) {
+        emit bus.evtRoundChanged(r);
+    });
+    connect(m_model, &GameModel::pointsChanged, [&bus](int p) {
+        emit bus.evtPointsChanged(p);
+    });
+    connect(m_model, &GameModel::phaseChanged, [&bus](GamePhase ph) {
+        emit bus.evtPhaseChanged(ph);
+    });
+    connect(m_model, &GameModel::messageChanged, [&bus](const QString &msg) {
+        emit bus.evtMessageChanged(msg);
+    });
+    connect(m_model, &GameModel::squareHit, [&bus](int p, int idx) {
+        emit bus.evtSquareHit(p, idx);
+    });
+    connect(m_model, &GameModel::trajectoryUpdated, [&bus]() {
+        emit bus.evtTrajectoryUpdated();
+    });
+    connect(m_model, &GameModel::gameOver, [&bus](const QString &info) {
+        emit bus.evtGameOver(info);
+    });
+    connect(m_model, &GameModel::pausedChanged, [&bus](bool p) {
+        emit bus.evtPausedChanged(p);
+    });
 }
 
-QVector<Square> GameViewModel::obstacles() const {
-    return m_model->obstacles();
+void GameViewModel::registerGetters() {
+    auto &bus = EventBus::instance();
+    bus.registerStateGetters(
+        [this]() { return m_model->currentPlayer(); },
+        [this]() { return m_model->roundNumber(); },
+        [this]() { return m_model->availablePoints(); },
+        [this]() { return m_costPreview; },
+        [this](int p) { return m_model->aliveCount(p); },
+        [this]() { return m_model->selectedSquareIndex(); },
+        [this]() { return m_model->paused(); },
+        [this]() { return m_model->config().showGridLines; },
+        [this]() { return m_model->config().showCoordinates; },
+        [this]() { return m_model->isGameOver(); },
+        [this]() { return m_model->isWaitingInput(); },
+        [this]() { return m_model->isAnimating(); },
+        [this]() { return m_model->message(); },
+        [this](int p) { return m_model->playerColor(p); },
+        [this](int p) { return m_model->playerSquares(p); },
+        [this]() { return m_model->obstacles(); },
+        [this]() { return m_model->trajectory(); },
+        [this]() {
+            auto h = m_model->history();
+            return h.isEmpty() ? QVector<QPointF>() : h.last();
+        },
+        []() { return SaveManager::kSlotCount; },
+        []() {
+            QVector<SaveInfo> result;
+            for (int slot = 0; slot < SaveManager::kSlotCount; ++slot)
+                result.append(SaveManager::slotInfo(slot));
+            return result;
+        },
+        [](int slot) { return SaveManager::slotPath(slot); },
+        [this]() -> const GameConfig& { return m_model->config(); }
+    );
 }
 
-QVector<QPointF> GameViewModel::trajectory() const {
-    return m_model->trajectory();
+void GameViewModel::connectCommands() {
+    auto &bus = EventBus::instance();
+    connect(&bus, &EventBus::cmdNewGame, this, &GameViewModel::onCmdNewGame);
+    connect(&bus, &EventBus::cmdLaunch, this, &GameViewModel::onCmdLaunch);
+    connect(&bus, &EventBus::cmdUpdateCostPreview, this, &GameViewModel::onCmdUpdateCostPreview);
+    connect(&bus, &EventBus::cmdNextTurn, this, &GameViewModel::onCmdNextTurn);
+    connect(&bus, &EventBus::cmdPause, this, &GameViewModel::onCmdPause);
+    connect(&bus, &EventBus::cmdResume, this, &GameViewModel::onCmdResume);
+    connect(&bus, &EventBus::cmdTogglePause, this, &GameViewModel::onCmdTogglePause);
+    connect(&bus, &EventBus::cmdSetConfig, this, &GameViewModel::onCmdSetConfig);
+    connect(&bus, &EventBus::cmdSaveToSlot, this, &GameViewModel::onCmdSaveToSlot);
+    connect(&bus, &EventBus::cmdLoadFromSlot, this, &GameViewModel::onCmdLoadFromSlot);
+    connect(&bus, &EventBus::cmdDeleteSlot, this, &GameViewModel::onCmdDeleteSlot);
 }
 
-QVector<QPointF> GameViewModel::historyTrajectory() const {
-    auto h = m_model->history();
-    if (h.isEmpty()) return {};
-    return h.last();
-}
-
-bool GameViewModel::isGameOver() const     { return m_model->isGameOver(); }
-bool GameViewModel::isWaitingInput() const { return m_model->isWaitingInput(); }
-bool GameViewModel::isAnimating() const    { return m_model->isAnimating(); }
-
-// ===================== 配置 =====================
-GameConfig GameViewModel::configSnapshot() const { return m_model->config(); }
-const GameConfig &GameViewModel::config() const { return m_model->config(); }
-bool GameViewModel::showGridLines() const { return m_model->config().showGridLines; }
-bool GameViewModel::showCoordinates() const { return m_model->config().showCoordinates; }
-
-// ===================== 存档管理 =====================
-int GameViewModel::slotCount() const { return SaveManager::kSlotCount; }
-
-QVector<SaveInfo> GameViewModel::slotInfos() const {
-    QVector<SaveInfo> result;
-    for (int slot = 0; slot < SaveManager::kSlotCount; ++slot)
-        result.append(SaveManager::slotInfo(slot));
-    return result;
-}
-
-QString GameViewModel::slotPath(int slot) const {
-    return SaveManager::slotPath(slot);
-}
-
-bool GameViewModel::saveToSlot(int slot) {
-    QString json = m_model->toJson();
-    bool ok = SaveManager::writeSlot(slot, json);
-    emit saveResult(slot, ok, ok ? "Saved" : "Save failed");
-    return ok;
-}
-
-bool GameViewModel::loadFromSlot(int slot) {
-    bool ok = false;
-    QString text = SaveManager::readSlot(slot, &ok);
-    if (!ok) {
-        emit saveResult(slot, false, "Load failed: file not found");
-        return false;
-    }
-    if (!m_model->fromJson(text)) {
-        emit saveResult(slot, false, "Load failed: bad data");
-        return false;
-    }
-    m_costPreview = 0;
-    // 加载后需要通知所有订阅者刷新 UI —— 通过手动发出几个关键信号
-    emit turnChanged(m_model->currentPlayer());
-    emit roundChanged(m_model->roundNumber());
-    emit pointsChanged(m_model->availablePoints());
-    emit phaseChanged(m_model->phase());
-    emit messageChanged(m_model->message());
-    emit trajectoryUpdated();
-    emit costPreviewChanged(0);
-    emit saveResult(slot, true, "Loaded");
-    return true;
-}
-
-bool GameViewModel::deleteSlot(int slot) {
-    bool ok = SaveManager::deleteSlot(slot);
-    emit saveResult(slot, ok, ok ? "Deleted" : "Delete failed");
-    return ok;
-}
-
-// ===================== 业务操作（转发到 Model） =====================
-void GameViewModel::newGame() {
+void GameViewModel::onCmdNewGame() {
     m_costPreview = 0;
     m_model->newGame(m_model->config());
-    emit costPreviewChanged(0);
+    emit EventBus::instance().evtCostPreviewChanged(0);
 }
 
-void GameViewModel::updateCostPreview(const QString &expr) {
+void GameViewModel::onCmdLaunch(const QString &expr) {
+    bool ok = m_model->launch(expr);
+    if (ok) {
+        m_costPreview = 0;
+        emit EventBus::instance().evtCostPreviewChanged(0);
+    }
+}
+
+void GameViewModel::onCmdUpdateCostPreview(const QString &expr) {
     if (expr.isEmpty()) {
         m_costPreview = 0;
-        emit costPreviewChanged(0);
+        emit EventBus::instance().evtCostPreviewChanged(0);
         return;
     }
     m_costPreview = m_model->calculateCost(expr);
-    emit costPreviewChanged(m_costPreview);
+    emit EventBus::instance().evtCostPreviewChanged(m_costPreview);
 }
 
-void GameViewModel::launch(const QString &expr) {
-    bool ok = m_model->launch(expr);
-    if (ok) {
-        // 成功发射 → 重置点数预览（输入框应该清空）
-        m_costPreview = 0;
-        emit costPreviewChanged(0);
-    }
-}
-
-void GameViewModel::nextTurn() {
+void GameViewModel::onCmdNextTurn() {
     m_model->nextTurn();
 }
 
-void GameViewModel::pause()       { m_model->pause(); }
-void GameViewModel::resume()      { m_model->resume(); }
-void GameViewModel::togglePause() { m_model->togglePause(); }
+void GameViewModel::onCmdPause() {
+    m_model->pause();
+}
 
-void GameViewModel::setConfig(const GameConfig &cfg) {
+void GameViewModel::onCmdResume() {
+    m_model->resume();
+}
+
+void GameViewModel::onCmdTogglePause() {
+    m_model->togglePause();
+}
+
+void GameViewModel::onCmdSetConfig(const GameConfig &cfg) {
     m_model->setConfig(cfg);
+}
+
+void GameViewModel::onCmdSaveToSlot(int slot) {
+    QString json = m_model->toJson();
+    bool ok = SaveManager::writeSlot(slot, json);
+    emit EventBus::instance().evtSaveResult(slot, ok, ok ? "Saved" : "Save failed");
+}
+
+void GameViewModel::onCmdLoadFromSlot(int slot) {
+    bool ok = false;
+    QString text = SaveManager::readSlot(slot, &ok);
+    if (!ok) {
+        emit EventBus::instance().evtSaveResult(slot, false, "Load failed: file not found");
+        return;
+    }
+    if (!m_model->fromJson(text)) {
+        emit EventBus::instance().evtSaveResult(slot, false, "Load failed: bad data");
+        return;
+    }
+    m_costPreview = 0;
+    auto &bus = EventBus::instance();
+    emit bus.evtTurnChanged(m_model->currentPlayer());
+    emit bus.evtRoundChanged(m_model->roundNumber());
+    emit bus.evtPointsChanged(m_model->availablePoints());
+    emit bus.evtPhaseChanged(m_model->phase());
+    emit bus.evtMessageChanged(m_model->message());
+    emit bus.evtTrajectoryUpdated();
+    emit bus.evtCostPreviewChanged(0);
+    emit bus.evtSaveResult(slot, true, "Loaded");
+}
+
+void GameViewModel::onCmdDeleteSlot(int slot) {
+    bool ok = SaveManager::deleteSlot(slot);
+    emit EventBus::instance().evtSaveResult(slot, ok, ok ? "Deleted" : "Delete failed");
 }

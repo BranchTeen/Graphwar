@@ -4,10 +4,9 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QMessageBox>
+#include <QFont>
 
-SaveManagerPage::SaveManagerPage(GameViewModel *vm, QWidget *parent)
-    : QWidget(parent), m_vm(vm) {
-
+SaveManagerPage::SaveManagerPage(QWidget *parent) : QWidget(parent) {
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(40, 30, 40, 30);
     root->setSpacing(20);
@@ -17,46 +16,35 @@ SaveManagerPage::SaveManagerPage(GameViewModel *vm, QWidget *parent)
     title->setAlignment(Qt::AlignCenter);
     root->addWidget(title);
 
-    m_slotsContainer = new QWidget(this);
-    m_slotsContainer->setStyleSheet("background:#1a1a2a;border-radius:8px;");
-    root->addWidget(m_slotsContainer, 1);
+    buildSlots();
 
     auto *backBtn = new QPushButton("← Back to Start", this);
     backBtn->setStyleSheet(
         "QPushButton{background:#334;color:#ddd;padding:10px 24px;border-radius:6px;font-size:14px;}"
         "QPushButton:hover{background:#446;}");
-    connect(backBtn, &QPushButton::clicked, this, &SaveManagerPage::backToStart);
+    connect(backBtn, &QPushButton::clicked, this, &SaveManagerPage::onBackClicked);
     root->addWidget(backBtn, 0, Qt::AlignCenter);
 
-    rebuild();
+    auto &bus = EventBus::instance();
+    connect(&bus, &EventBus::evtSaveResult, this, &SaveManagerPage::onSaveResult);
 }
 
-void SaveManagerPage::refresh() {
-    rebuild();
-}
-
-void SaveManagerPage::rebuild() {
-
-    if (m_slotsContainer->layout()) {
-        QLayoutItem *item;
-        while ((item = m_slotsContainer->layout()->takeAt(0)) != nullptr) {
-            delete item->widget();
-            delete item;
-        }
-        delete m_slotsContainer->layout();
-    }
-
-    auto *layout = new QVBoxLayout(m_slotsContainer);
+void SaveManagerPage::buildSlots() {
+    auto *slotsContainer = new QWidget(this);
+    slotsContainer->setStyleSheet("background:#1a1a2a;border-radius:8px;");
+    auto *layout = new QVBoxLayout(slotsContainer);
     layout->setContentsMargins(20, 20, 20, 20);
     layout->setSpacing(12);
 
-    int total = m_vm ? m_vm->slotCount() : 0;
-    QVector<SaveInfo> infos = m_vm ? m_vm->slotInfos() : QVector<SaveInfo>();
+    auto &bus = EventBus::instance();
+    int total = bus.slotCount();
+    auto infos = bus.slotInfos();
+
     for (int slot = 0; slot < total; ++slot) {
         SaveInfo info;
         if (slot < infos.size()) info = infos[slot];
 
-        auto *row = new QWidget(m_slotsContainer);
+        auto *row = new QWidget(slotsContainer);
         auto *rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(12, 8, 12, 8);
         rowLayout->setSpacing(16);
@@ -83,7 +71,7 @@ void SaveManagerPage::rebuild() {
             "QPushButton{background:#2a7;color:white;padding:8px 18px;border-radius:4px;font-size:13px;}"
             "QPushButton:hover:!disabled{background:#3c9;}"
             "QPushButton:disabled{background:#333;color:#666;}");
-        connect(loadBtn, &QPushButton::clicked, this, [this, slot](){ loadSlot(slot); });
+        connect(loadBtn, &QPushButton::clicked, this, [this, slot](){ onLoadClicked(slot); });
         rowLayout->addWidget(loadBtn);
 
         auto *delBtn = new QPushButton("Delete", row);
@@ -92,31 +80,36 @@ void SaveManagerPage::rebuild() {
             "QPushButton{background:#733;color:white;padding:8px 18px;border-radius:4px;font-size:13px;}"
             "QPushButton:hover:!disabled{background:#a44;}"
             "QPushButton:disabled{background:#333;color:#666;}");
-        connect(delBtn, &QPushButton::clicked, this, [this, slot](){ deleteSlot(slot); });
+        connect(delBtn, &QPushButton::clicked, this, [this, slot](){ onDeleteClicked(slot); });
         rowLayout->addWidget(delBtn);
 
         layout->addWidget(row);
     }
+
+    static_cast<QVBoxLayout*>(this->layout())->insertWidget(1, slotsContainer, 1);
 }
 
-void SaveManagerPage::loadSlot(int slot) {
-    if (!m_vm) return;
-    bool ok = m_vm->loadFromSlot(slot);
-    if (!ok) {
-        QMessageBox::warning(this, "Load failed",
-            QString("Could not load slot %1.\nFile path:\n%2")
-                .arg(slot + 1).arg(m_vm->slotPath(slot)));
-        return;
-    }
-    emit gameLoaded();
+void SaveManagerPage::onLoadClicked(int slot) {
+    emit EventBus::instance().cmdLoadFromSlot(slot);
 }
 
-void SaveManagerPage::deleteSlot(int slot) {
-    if (!m_vm) return;
+void SaveManagerPage::onDeleteClicked(int slot) {
     auto ret = QMessageBox::question(this, "Confirm delete",
         QString("Delete slot %1?").arg(slot + 1),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (ret != QMessageBox::Yes) return;
-    m_vm->deleteSlot(slot);
-    rebuild();
+    emit EventBus::instance().cmdDeleteSlot(slot);
+}
+
+void SaveManagerPage::onBackClicked() {
+    emit backRequested();
+}
+
+void SaveManagerPage::onSaveResult(int slot, bool ok, const QString &info) {
+    if (!ok) {
+        QMessageBox::warning(this, "Load failed",
+            QString("Could not load slot %1.\nFile path:\n%2")
+                .arg(slot + 1).arg(EventBus::instance().slotPath(slot)));
+        return;
+    }
 }

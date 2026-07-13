@@ -167,17 +167,17 @@ Graphwar/
     ├── main.cpp                    # 程序入口：创建 GraphwarApp → show_main_window → QApplication::exec()
     ├── app/                        # 应用层（Composition Root）
     │   └── GraphwarApp.h/cpp       # 持有 ViewModel + MainWindow，执行绑定（wiring）
-    ├── common/                     # 通用基础设施
-    │   ├── frame.h/cpp             # PropertyTrigger 通知系统（Plane 风格，std::function 回调）
-    │   ├── property_ids.h          # 属性 ID 枚举（PROP_ID_TURN, PROP_ID_PHASE 等）
-    │   └── Geometry.h              # Rect 数据结构
-    ├── model/                      # Model 层：业务逻辑 + 数据容器
-    │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、JSON 序列化）
-    │   ├── GameConfig.h            # 配置数据结构
+    ├── common/                     # 基础设施 + 跨层共享数据
+    │   ├── frame.h/cpp             # PropertyTrigger 通知系统
+    │   ├── property_ids.h          # 属性 ID 枚举
+    │   ├── GameConfig.h            # 配置数据
     │   ├── GamePhase.h             # 阶段枚举
-    │   ├── Player.h                # 玩家数据
-    │   ├── Square.h                # 方块数据
+    │   ├── GameState.h             # 游戏状态快照（含 slotInfos/slotCount，View 数据入口）
     │   ├── SaveInfo.h/cpp          # 存档元信息
+    │   └── Square.h                # 方块/障碍物数据（含 Rect）
+    ├── model/                      # Model 层：业务逻辑 + 工具类
+    │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、JSON 序列化）
+    │   ├── Player.h                # 玩家数据
     │   ├── SaveManager.h/cpp       # 存档文件 IO（静态工具类）
     │   └── parser/                 # 数学表达式解析器
     │       ├── Token.h             # Token 类型
@@ -338,7 +338,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 不使用 `%APPDATA%` 或 `~/.local/share/`，确保三个平台一致行为
 - 通过 `SaveManager::savesDir()` 计算路径 = `QCoreApplication::applicationDirPath() + "/saves"`
 - `SaveManager` 是纯静态工具类（Model 层），提供 `writeSlot` / `readSlot` / `slotInfo` / `deleteSlot`
-- 存档操作流程：View 调用 `m_saveSlotCmd(slot)` / `m_loadSlotCmd(slot)` / `m_deleteSlotCmd(slot)` → ViewModel 处理 → SaveManager 文件 IO → `fire(PROP_ID_SAVE_RESULT)` → 通知回调刷新 UI / 导航 / 弹窗
+- 存档操作流程：View 调用 `m_saveSlotCmd(slot)` / `m_loadSlotCmd(slot)` / `m_deleteSlotCmd(slot)` → ViewModel 处理 → SaveManager 文件 IO → `fire(PROP_ID_SAVE_RESULT)` + `syncState()` 更新 `GameState::slotInfos` → 通知回调刷新 UI / 导航 / 弹窗
 - 存档字段请参考上面"存档系统"小节
 
 ### 6. UI 布局
@@ -397,7 +397,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 │                        [ ← Back ]                   │
 └──────────────────────────────────────────────────────┘
 ```
-- 通过 `SaveManager::slotInfos()` 读取槽位信息
+- 通过 `GameState::slotInfos` / `slotCount` 读取槽位信息（由 ViewModel 从 SaveManager 同步）
 - Load / Delete 操作调用存储在 Widget 中的 `std::function` 命令
 - 存/删操作后通过 `PROP_ID_SAVE_RESULT` 通知自动刷新槽位显示（`refreshSlots()`）
 

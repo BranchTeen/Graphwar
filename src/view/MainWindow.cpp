@@ -33,20 +33,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     auto *topLayout = new QHBoxLayout(topBar);
     topLayout->setContentsMargins(10, 5, 10, 5);
 
+    m_coordLabel = new QLabel(this);
+    m_coordLabel->setStyleSheet("color:#ffc;font-size:12px;");
+    m_coordLabel->hide();
+
     m_p1Label = new QLabel("Player 1", this);
     m_p1Label->setStyleSheet("color:#3c78dc;font-weight:bold;font-size:14px;");
     m_p2Label = new QLabel("Player 2", this);
     m_p2Label->setStyleSheet("color:#dc3c3c;font-weight:bold;font-size:14px;");
-    auto *roundLabel = new QLabel(this);
-    roundLabel->setStyleSheet("color:#ffcc00;font-size:14px;font-weight:bold;");
-    auto *pointsLabel = new QLabel(this);
-    pointsLabel->setStyleSheet("color:#ffcc00;font-size:14px;");
+
+    m_roundLabel = new QLabel(this);
+    m_roundLabel->setStyleSheet("color:#ffcc00;font-size:14px;font-weight:bold;");
+    m_pointsLabel = new QLabel(this);
+    m_pointsLabel->setStyleSheet("color:#ffcc00;font-size:14px;");
+
+    m_coordLabel2 = new QLabel(this);
+    m_coordLabel2->setStyleSheet("color:#ffc;font-size:12px;");
+    m_coordLabel2->hide();
 
     topLayout->addWidget(m_p1Label);
+    topLayout->addWidget(m_coordLabel);
     topLayout->addStretch();
-    topLayout->addWidget(roundLabel);
-    topLayout->addWidget(pointsLabel);
+    topLayout->addWidget(m_roundLabel);
+    topLayout->addWidget(m_pointsLabel);
     topLayout->addStretch();
+    topLayout->addWidget(m_coordLabel2);
     topLayout->addWidget(m_p2Label);
 
     gameLayout->insertWidget(0, topBar);
@@ -138,13 +149,17 @@ PropertyNotification MainWindow::get_notification() {
         case PROP_ID_TURN:
             updateTopBarColors();
             m_canvas->update();
+            updateCoordLabels(model);
             break;
         case PROP_ID_ROUND:
+            m_roundLabel->setText(QString("Round %1").arg(model->roundNumber()));
+            break;
         case PROP_ID_POINTS:
-            updateTopBarColors();
+            m_pointsLabel->setText(QString("Points: %1").arg(model->availablePoints()));
             break;
         case PROP_ID_PHASE: {
             m_canvas->update();
+            updateCoordLabels(model);
             bool enabled = (model->phase() == GamePhase::WaitingInput);
             m_input->setInputEnabled(enabled);
             if (model->phase() == GamePhase::RoundEnd) {
@@ -197,9 +212,23 @@ void MainWindow::updateTopBarColors() {
     m_p2Label->setStyleSheet(cur == 1 ? makeStyle(cfg.player2Color) : QString("color:#555;font-size:14px;"));
 }
 
+void MainWindow::updateCoordLabels(const GameModel *model) {
+    int cur = model->currentPlayer();
+    int idx = model->selectedSquareIndex();
+    auto sq = model->playerSquares(cur).value(idx);
+    QString text = QString("(%1,%2)").arg(sq.rect.cx, 0, 'f', 1).arg(sq.rect.cy, 0, 'f', 1);
+    if (model->config().showCoordinates && !sq.destroyed) {
+        if (cur == 0) { m_coordLabel->setText(text); m_coordLabel->show(); m_coordLabel2->hide(); }
+        else          { m_coordLabel2->setText(text); m_coordLabel2->show(); m_coordLabel->hide(); }
+    } else {
+        m_coordLabel->hide(); m_coordLabel2->hide();
+    }
+}
+
 void MainWindow::startNewGame() {
     if (m_newGameCmd) m_newGameCmd();
     updateTopBarColors();
+    if (m_vm) updateCoordLabels(m_vm->get_model());
     showPage(PageGame);
 }
 

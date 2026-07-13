@@ -48,7 +48,22 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     p.drawLine(QPointF(0, ox.y()), QPointF(w, ox.y()));
     p.drawLine(QPointF(ox.x(), 0), QPointF(ox.x(), h));
 
-    int selIdx = model->selectedSquareIndex();
+    QVector<Square> obstacles = model->obstacles();
+    for (auto &obs : obstacles) {
+        QPointF tl = worldToScreen(obs.rect.cx - obs.rect.w/2, obs.rect.cy + obs.rect.h/2);
+        QPointF br = worldToScreen(obs.rect.cx + obs.rect.w/2, obs.rect.cy - obs.rect.h/2);
+        QRectF r(tl, br);
+
+        if (obs.destroyed) {
+            p.setPen(QPen(QColor(80, 80, 80), 1, Qt::DashLine));
+            p.drawRect(r);
+        } else {
+            p.fillRect(r, QColor(120, 120, 120));
+            p.setPen(QPen(QColor(50, 50, 50), 1));
+            p.drawRect(r);
+        }
+    }
+
     int curPlayer = model->currentPlayer();
 
     for (int pl = 0; pl < 2; ++pl) {
@@ -68,38 +83,10 @@ void GameCanvas::paintEvent(QPaintEvent *) {
                 p.fillRect(r, playerColor);
             }
 
-            if (!sq.destroyed && pl == curPlayer && i == selIdx) {
+            if (!sq.destroyed && pl == curPlayer && i == model->selectedSquareIndex()) {
                 p.setPen(QPen(QColor(255, 255, 255), 2, Qt::DashLine));
                 p.drawRect(r.adjusted(-3, -3, 3, 3));
-
-                if (cfg.showCoordinates) {
-                    QFont coordFont("Arial", 9);
-                    p.setFont(coordFont);
-                    QString coord = QString("(%1,%2)").arg(sq.rect.cx, 0, 'f', 1).arg(sq.rect.cy, 0, 'f', 1);
-                    QPointF pos = r.bottomLeft() + QPointF(3, 15);
-                    QFontMetrics fm(coordFont);
-                    QRectF bg(pos.x(), pos.y() - fm.ascent(), fm.horizontalAdvance(coord), fm.height());
-                    p.fillRect(bg, QColor(0, 0, 0, 160));
-                    p.setPen(QColor(200, 200, 200));
-                    p.drawText(pos, coord);
-                }
             }
-        }
-    }
-
-    QVector<Square> obstacles = model->obstacles();
-    for (auto &obs : obstacles) {
-        QPointF tl = worldToScreen(obs.rect.cx - obs.rect.w/2, obs.rect.cy + obs.rect.h/2);
-        QPointF br = worldToScreen(obs.rect.cx + obs.rect.w/2, obs.rect.cy - obs.rect.h/2);
-        QRectF r(tl, br);
-
-        if (obs.destroyed) {
-            p.setPen(QPen(QColor(80, 80, 80), 1, Qt::DashLine));
-            p.drawRect(r);
-        } else {
-            p.fillRect(r, QColor(120, 120, 120));
-            p.setPen(QPen(QColor(50, 50, 50), 1));
-            p.drawRect(r);
         }
     }
 
@@ -139,4 +126,5 @@ void GameCanvas::paintEvent(QPaintEvent *) {
             .arg(model->roundNumber());
         p.drawText(rect(), Qt::AlignCenter, winner);
     }
+
 }

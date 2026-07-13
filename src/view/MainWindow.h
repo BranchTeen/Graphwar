@@ -2,6 +2,7 @@
 #include "common/frame.h"
 
 class GameViewModel;
+class GameModel;
 class GameCanvas;
 class FunctionInput;
 class ConfigPage;
@@ -54,12 +55,13 @@ private:
     void onGameLoaded();
     void onGameOver(const QString &winnerInfo);
     void updateTopBarColors();
+    void updateCoordLabels(const GameModel *model);
 
     QStackedWidget *m_stack;
     const GameViewModel *m_vm = nullptr;
     GameCanvas *m_canvas;
     FunctionInput *m_input;
-    QLabel *m_p1Label, *m_p2Label;
+    QLabel *m_p1Label, *m_p2Label, *m_roundLabel, *m_pointsLabel, *m_coordLabel, *m_coordLabel2;
     SaveManagerPage *m_savePage;
     PauseMenuPage *m_pausePage;
     ConfigPage *m_configPage;

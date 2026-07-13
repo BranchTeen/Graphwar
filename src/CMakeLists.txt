@@ -36,6 +36,8 @@ endif()
 
 add_executable(Graphwar ${SOURCES})
 
+set_target_properties(Graphwar PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
 target_precompile_headers(Graphwar PRIVATE precomp.h)
 
 target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

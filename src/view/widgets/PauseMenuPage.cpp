@@ -11,24 +11,52 @@ PauseMenuPage::PauseMenuPage(QWidget *parent) : QWidget(parent) {
     root->setContentsMargins(40, 30, 40, 30);
     root->setSpacing(16);
 
-    auto *title = new QLabel("Paused", this);
-    title->setStyleSheet("color:#4af;font-size:28px;font-weight:bold;");
+    auto *title = new QLabel("PAUSED", this);
+    title->setStyleSheet(
+        "color: white; font-size: 36px; font-weight: bold;"
+        "padding: 16px 32px; letter-spacing: 2px;"
+        "background: rgba(0, 0, 0, 140); border-radius: 16px;"
+    );
     title->setAlignment(Qt::AlignCenter);
     root->addWidget(title);
 
-    m_continueBtn = new QPushButton("Resume (Esc)", this);
+    m_continueBtn = new QPushButton("RESUME (ESC)", this);
+    m_continueBtn->setCursor(Qt::PointingHandCursor);
     m_continueBtn->setStyleSheet(
-        "QPushButton{background:#2a7;color:white;padding:12px 30px;border-radius:6px;font-size:16px;}"
-        "QPushButton:hover{background:#3c9;}");
+        "QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 80, 100, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 160, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 140, 220);"
+        "}"
+    );
     connect(m_continueBtn, &QPushButton::clicked, this, &PauseMenuPage::onContinueClicked);
     root->addWidget(m_continueBtn);
 
     buildSaveSlots();
 
-    m_backBtn = new QPushButton("Back to title", this);
+    m_backBtn = new QPushButton("BACK TO TITLE", this);
+    m_backBtn->setCursor(Qt::PointingHandCursor);
     m_backBtn->setStyleSheet(
-        "QPushButton{background:#533;color:white;padding:10px 24px;border-radius:6px;font-size:14px;}"
-        "QPushButton:hover{background:#744;}");
+        "QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
     connect(m_backBtn, &QPushButton::clicked, this, &PauseMenuPage::onBackClicked);
     root->addWidget(m_backBtn, 0, Qt::AlignCenter);
 }
@@ -39,8 +67,8 @@ void PauseMenuPage::buildSaveSlots() {
     m_slotsWidget = new QWidget(this);
     auto *slotsLayout = new QVBoxLayout(m_slotsWidget);
     slotsLayout->setContentsMargins(20, 20, 20, 20);
-    slotsLayout->setSpacing(10);
-    m_slotsWidget->setStyleSheet("background:#1a1a2a;border-radius:8px;");
+    slotsLayout->setSpacing(16);
+    m_slotsWidget->setStyleSheet("background: rgba(0, 0, 0, 120); border-radius: 12px;");
 
     int total = m_state ? m_state->slotCount : 3;
     auto infos = m_state ? m_state->slotInfos : QVector<SaveInfo>();
@@ -51,29 +79,45 @@ void PauseMenuPage::buildSaveSlots() {
 
         auto *row = new QWidget(m_slotsWidget);
         auto *rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(12, 6, 12, 6);
-        rowLayout->setSpacing(16);
+        rowLayout->setContentsMargins(16, 12, 16, 12);
+        rowLayout->setSpacing(20);
+        row->setStyleSheet("background: rgba(40, 40, 60, 100); border-radius: 8px;");
 
-        auto *slotLabel = new QLabel(QString("Slot %1").arg(slot + 1), row);
-        slotLabel->setStyleSheet("color:#ffcc00;font-size:15px;font-weight:bold;");
+        auto *slotLabel = new QLabel(QString("SLOT %1").arg(slot + 1), row);
+        slotLabel->setStyleSheet(
+            "color: white; font-size: 16px; font-weight: bold;"
+            "background: rgba(0, 0, 0, 100); padding: 4px 12px; border-radius: 6px;"
+        );
         slotLabel->setMinimumWidth(80);
         rowLayout->addWidget(slotLabel);
 
         auto *infoLabel = new QLabel(row);
         if (info.exists) {
-            infoLabel->setText(QString("[Existing] Round %1  |  Player %2  |  %3")
+            infoLabel->setText(QString("[EXISTING] ROUND %1  |  PLAYER %2  |  %3")
                 .arg(info.roundNumber).arg(info.currentPlayer + 1).arg(info.displayTime()));
-            infoLabel->setStyleSheet("color:#f88;font-size:12px;");
+            infoLabel->setStyleSheet("color: #ff8888; font-size: 14px;");
         } else {
-            infoLabel->setText("(Empty)");
-            infoLabel->setStyleSheet("color:#888;font-size:12px;font-style:italic;");
+            infoLabel->setText("(EMPTY)");
+            infoLabel->setStyleSheet("color: #666; font-size: 14px; font-style: italic;");
         }
         rowLayout->addWidget(infoLabel, 1);
 
-        auto *saveBtn = new QPushButton(info.exists ? "Save (overwrite)" : "Save", row);
+        auto *saveBtn = new QPushButton(info.exists ? "SAVE (OVERWRITE)" : "SAVE", row);
+        saveBtn->setCursor(Qt::PointingHandCursor);
         saveBtn->setStyleSheet(
-            "QPushButton{background:#2a7;color:white;padding:8px 22px;border-radius:4px;font-size:13px;}"
-            "QPushButton:hover{background:#3c9;}");
+            "QPushButton {"
+            "min-width: 120px; min-height: 40px; border-radius: 8px;"
+            "border: 2px solid rgba(255, 255, 255, 180); font-weight: bold;"
+            "color: white; font-size: 14px;"
+            "background: rgba(40, 80, 100, 150);"
+            "}"
+            "QPushButton:hover {"
+            "background: rgba(70, 130, 160, 200); border: 2px solid white;"
+            "}"
+            "QPushButton:pressed {"
+            "background: rgba(50, 100, 140, 220);"
+            "}"
+        );
         connect(saveBtn, &QPushButton::clicked, this, [this, slot](){ onSaveClicked(slot); });
         m_saveSlots.append(saveBtn);
         rowLayout->addWidget(saveBtn);

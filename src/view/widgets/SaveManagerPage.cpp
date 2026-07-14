@@ -12,17 +12,33 @@ SaveManagerPage::SaveManagerPage(QWidget *parent) : QWidget(parent) {
     root->setContentsMargins(40, 30, 40, 30);
     root->setSpacing(20);
 
-    auto *title = new QLabel("Load / Manage Saves", this);
-    title->setStyleSheet("color:#4af;font-size:28px;font-weight:bold;");
+    auto *title = new QLabel("LOAD / MANAGE SAVES", this);
+    title->setStyleSheet(
+        "color: white; font-size: 36px; font-weight: bold;"
+        "padding: 16px 32px; letter-spacing: 2px;"
+        "background: rgba(0, 0, 0, 140); border-radius: 16px;"
+    );
     title->setAlignment(Qt::AlignCenter);
     root->addWidget(title);
 
     buildSlots();
 
-    auto *backBtn = new QPushButton("← Back to Start", this);
+    auto *backBtn = new QPushButton("BACK TO START", this);
+    backBtn->setCursor(Qt::PointingHandCursor);
     backBtn->setStyleSheet(
-        "QPushButton{background:#334;color:#ddd;padding:10px 24px;border-radius:6px;font-size:14px;}"
-        "QPushButton:hover{background:#446;}");
+        "QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
     connect(backBtn, &QPushButton::clicked, this, &SaveManagerPage::onBackClicked);
     root->addWidget(backBtn, 0, Qt::AlignCenter);
 }
@@ -31,10 +47,10 @@ SaveManagerPage::~SaveManagerPage() noexcept {}
 
 void SaveManagerPage::buildSlots() {
     m_slotsContainer = new QWidget(this);
-    m_slotsContainer->setStyleSheet("background:#1a1a2a;border-radius:8px;");
+    m_slotsContainer->setStyleSheet("background: rgba(0, 0, 0, 120); border-radius: 12px;");
     auto *layout = new QVBoxLayout(m_slotsContainer);
     layout->setContentsMargins(20, 20, 20, 20);
-    layout->setSpacing(12);
+    layout->setSpacing(16);
 
     int total = m_state ? m_state->slotCount : 3;
     auto infos = m_state ? m_state->slotInfos : QVector<SaveInfo>();
@@ -45,40 +61,74 @@ void SaveManagerPage::buildSlots() {
 
         auto *row = new QWidget(m_slotsContainer);
         auto *rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(12, 8, 12, 8);
-        rowLayout->setSpacing(16);
+        rowLayout->setContentsMargins(16, 12, 16, 12);
+        rowLayout->setSpacing(20);
+        row->setStyleSheet("background: rgba(40, 40, 60, 100); border-radius: 8px;");
 
-        auto *slotLabel = new QLabel(QString("Slot %1").arg(slot + 1), row);
-        slotLabel->setStyleSheet("color:#ffcc00;font-size:16px;font-weight:bold;");
+        auto *slotLabel = new QLabel(QString("SLOT %1").arg(slot + 1), row);
+        slotLabel->setStyleSheet(
+            "color: white; font-size: 16px; font-weight: bold;"
+            "background: rgba(0, 0, 0, 100); padding: 4px 12px; border-radius: 6px;"
+        );
         slotLabel->setMinimumWidth(80);
         rowLayout->addWidget(slotLabel);
 
         auto *infoLabel = new QLabel(row);
-        infoLabel->setStyleSheet("color:#ddd;font-size:13px;");
+        infoLabel->setStyleSheet("color: #e8e8ff; font-size: 14px;");
         if (info.exists) {
-            infoLabel->setText(QString("Round %1  |  Player %2's turn  |  Saved at %3")
+            infoLabel->setText(QString("ROUND %1  |  PLAYER %2  |  SAVED AT %3")
                 .arg(info.roundNumber).arg(info.currentPlayer + 1).arg(info.displayTime()));
         } else {
-            infoLabel->setText("(Empty)");
-            infoLabel->setStyleSheet("color:#666;font-size:13px;font-style:italic;");
+            infoLabel->setText("(EMPTY)");
+            infoLabel->setStyleSheet("color: #666; font-size: 14px; font-style: italic;");
         }
         rowLayout->addWidget(infoLabel, 1);
 
-        auto *loadBtn = new QPushButton("Load", row);
+        auto *loadBtn = new QPushButton("LOAD", row);
         loadBtn->setEnabled(info.exists);
+        loadBtn->setCursor(Qt::PointingHandCursor);
         loadBtn->setStyleSheet(
-            "QPushButton{background:#2a7;color:white;padding:8px 18px;border-radius:4px;font-size:13px;}"
-            "QPushButton:hover:!disabled{background:#3c9;}"
-            "QPushButton:disabled{background:#333;color:#666;}");
+            "QPushButton {"
+            "min-width: 100px; min-height: 40px; border-radius: 8px;"
+            "border: 2px solid rgba(255, 255, 255, 180); font-weight: bold;"
+            "color: white; font-size: 14px;"
+            "background: rgba(40, 80, 120, 150);"
+            "}"
+            "QPushButton:hover:!disabled {"
+            "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+            "}"
+            "QPushButton:pressed:!disabled {"
+            "background: rgba(50, 100, 180, 220);"
+            "}"
+            "QPushButton:disabled {"
+            "background: rgba(30, 30, 40, 100); border: 2px solid rgba(100, 100, 100, 100);"
+            "color: #666;"
+            "}"
+        );
         connect(loadBtn, &QPushButton::clicked, this, [this, slot](){ onLoadClicked(slot); });
         rowLayout->addWidget(loadBtn);
 
-        auto *delBtn = new QPushButton("Delete", row);
+        auto *delBtn = new QPushButton("DELETE", row);
         delBtn->setEnabled(info.exists);
+        delBtn->setCursor(Qt::PointingHandCursor);
         delBtn->setStyleSheet(
-            "QPushButton{background:#733;color:white;padding:8px 18px;border-radius:4px;font-size:13px;}"
-            "QPushButton:hover:!disabled{background:#a44;}"
-            "QPushButton:disabled{background:#333;color:#666;}");
+            "QPushButton {"
+            "min-width: 100px; min-height: 40px; border-radius: 8px;"
+            "border: 2px solid rgba(255, 100, 100, 180); font-weight: bold;"
+            "color: white; font-size: 14px;"
+            "background: rgba(100, 40, 40, 150);"
+            "}"
+            "QPushButton:hover:!disabled {"
+            "background: rgba(180, 60, 60, 200); border: 2px solid #ff6666;"
+            "}"
+            "QPushButton:pressed:!disabled {"
+            "background: rgba(150, 50, 50, 220);"
+            "}"
+            "QPushButton:disabled {"
+            "background: rgba(30, 30, 40, 100); border: 2px solid rgba(100, 100, 100, 100);"
+            "color: #666;"
+            "}"
+        );
         connect(delBtn, &QPushButton::clicked, this, [this, slot](){ onDeleteClicked(slot); });
         rowLayout->addWidget(delBtn);
 

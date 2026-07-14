@@ -17,7 +17,7 @@ const QVector<QColor> ConfigPage::s_colors{
 };
 
 ConfigPage::ConfigPage(QWidget *parent) : QWidget(parent) {
-    setStyleSheet("background:#141420;");
+    setStyleSheet("background: rgba(15, 15, 26, 240);");
     build();
 }
 
@@ -72,82 +72,138 @@ void ConfigPage::build() {
     root->setContentsMargins(60, 40, 60, 40);
     root->setSpacing(20);
 
-    auto *title = new QLabel("Game Settings", this);
-    title->setStyleSheet("color:#4af;font-size:32px;font-weight:bold;");
+    auto *title = new QLabel("GAME SETTINGS", this);
+    title->setStyleSheet(
+        "color: white; font-size: 36px; font-weight: bold;"
+        "padding: 16px 32px; letter-spacing: 2px;"
+        "background: rgba(0, 0, 0, 140); border-radius: 16px;"
+    );
     title->setAlignment(Qt::AlignCenter);
     root->addWidget(title);
 
     auto *form = new QWidget(this);
-    form->setStyleSheet("background:#1a1a2e;border-radius:8px;padding:20px;");
+    form->setStyleSheet("background: rgba(0, 0, 0, 120); border-radius: 12px; padding: 20px;");
     auto *formLayout = new QFormLayout(form);
     formLayout->setSpacing(16);
     formLayout->setContentsMargins(30, 20, 30, 20);
     formLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-    auto spinStyle = "QSpinBox{background:#0f0f1a;color:#fff;font-size:14px;padding:4px 8px;border:1px solid #335;border-radius:4px;}";
-    auto dspinStyle = "QDoubleSpinBox{background:#0f0f1a;color:#fff;font-size:14px;padding:4px 8px;border:1px solid #335;border-radius:4px;}";
-    auto sepStyle = "QCheckBox{color:#ddd;font-size:14px;spacing:8px;}"
-                    "QCheckBox::indicator{width:18px;height:18px;border-radius:3px;border:1px solid #558;background:#0f0f1a;}"
-                    "QCheckBox::indicator:checked{background:#2a7;border:1px solid #3c9;}";
+    auto spinStyle = 
+        "QSpinBox {"
+        "background: rgba(40, 40, 60, 150); color: white; font-size: 14px;"
+        "padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 150); border-radius: 6px;"
+        "}"
+        "QSpinBox::up-button, QSpinBox::down-button {"
+        "border: none; background: rgba(70, 130, 200, 100); width: 16px;"
+        "}"
+        "QSpinBox::up-button:hover, QSpinBox::down-button:hover {"
+        "background: rgba(70, 130, 200, 200);"
+        "}";
+    auto dspinStyle = 
+        "QDoubleSpinBox {"
+        "background: rgba(40, 40, 60, 150); color: white; font-size: 14px;"
+        "padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 150); border-radius: 6px;"
+        "}"
+        "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
+        "border: none; background: rgba(70, 130, 200, 100); width: 16px;"
+        "}"
+        "QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {"
+        "background: rgba(70, 130, 200, 200);"
+        "}";
+    auto sepStyle = 
+        "QCheckBox { color: #e8e8ff; font-size: 14px; font-weight: bold; spacing: 8px; }"
+        "QCheckBox::indicator { width: 18px; height: 18px; border-radius: 4px;"
+        "border: 2px solid rgba(255, 255, 255, 150); background: rgba(40, 40, 60, 150); }"
+        "QCheckBox::indicator:checked { background: rgba(70, 130, 160, 200); border: 2px solid white; }";
 
     auto addField = [&](const QString &label, QWidget *field) {
         int r = formLayout->rowCount();
-        formLayout->addRow(label, field);
+        auto *labelWidget = new QLabel(label, form);
+        labelWidget->setStyleSheet("color: #e8e8ff; font-size: 14px; font-weight: bold;");
+        formLayout->addRow(labelWidget, field);
         if (auto *item = formLayout->itemAt(r, QFormLayout::FieldRole))
             item->setAlignment(Qt::AlignVCenter);
     };
 
-    m_squaresSpin = new QSpinBox(this);
+    m_squaresSpin = new QSpinBox(form);
     m_squaresSpin->setRange(1, 10);
     m_squaresSpin->setValue(5);
     m_squaresSpin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
     m_squaresSpin->setStyleSheet(spinStyle);
-    addField("Squares per player (1-10):", m_squaresSpin);
+    addField("SQUARES PER PLAYER (1-10):", m_squaresSpin);
 
-    m_obstacleCountSpin = new QSpinBox(this);
+    m_obstacleCountSpin = new QSpinBox(form);
     m_obstacleCountSpin->setRange(0, 30);
     m_obstacleCountSpin->setValue(10);
     m_obstacleCountSpin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
     m_obstacleCountSpin->setStyleSheet(spinStyle);
-    addField("Obstacles (0-30):", m_obstacleCountSpin);
+    addField("OBSTACLES (0-30):", m_obstacleCountSpin);
 
-    m_obstacleSizeSpin = new QDoubleSpinBox(this);
+    m_obstacleSizeSpin = new QDoubleSpinBox(form);
     m_obstacleSizeSpin->setRange(0.5, 5.0);
     m_obstacleSizeSpin->setSingleStep(0.1);
     m_obstacleSizeSpin->setValue(1.8);
     m_obstacleSizeSpin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
     m_obstacleSizeSpin->setStyleSheet(dspinStyle);
-    addField("Obstacle size (0.5-5.0):", m_obstacleSizeSpin);
+    addField("OBSTACLE SIZE (0.5-5.0):", m_obstacleSizeSpin);
 
-    m_coordCheck = new QCheckBox("Show square coordinates", this);
+    m_coordCheck = new QCheckBox("SHOW SQUARE COORDINATES", form);
     m_coordCheck->setChecked(true);
     m_coordCheck->setStyleSheet(sepStyle);
     formLayout->addRow("", m_coordCheck);
 
-    m_gridCheck = new QCheckBox("Show grid lines", this);
+    m_gridCheck = new QCheckBox("SHOW GRID LINES", form);
     m_gridCheck->setChecked(false);
     m_gridCheck->setStyleSheet(sepStyle);
     formLayout->addRow("", m_gridCheck);
 
-    formLayout->addRow("P1 Color:", createSwatchRow(0));
-    formLayout->addRow("P2 Color:", createSwatchRow(1));
+    auto *p1Label = new QLabel("P1 COLOR:", form);
+    p1Label->setStyleSheet("color: #e8e8ff; font-size: 14px; font-weight: bold;");
+    formLayout->addRow(p1Label, createSwatchRow(0));
+    auto *p2Label = new QLabel("P2 COLOR:", form);
+    p2Label->setStyleSheet("color: #e8e8ff; font-size: 14px; font-weight: bold;");
+    formLayout->addRow(p2Label, createSwatchRow(1));
 
     root->addWidget(form);
 
     auto *btnLayout = new QHBoxLayout;
     btnLayout->setSpacing(20);
 
-    auto *backBtn = new QPushButton("← Back", this);
+    auto *backBtn = new QPushButton("BACK", this);
+    backBtn->setCursor(Qt::PointingHandCursor);
     backBtn->setStyleSheet(
-        "QPushButton{background:#334;color:#ddd;padding:12px 40px;border-radius:6px;font-size:16px;}"
-        "QPushButton:hover{background:#556;}");
+        "QPushButton {"
+        "min-width: 150px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
     connect(backBtn, &QPushButton::clicked, this, &ConfigPage::backToStart);
     btnLayout->addWidget(backBtn);
 
     auto *startBtn = new QPushButton("START GAME", this);
+    startBtn->setCursor(Qt::PointingHandCursor);
     startBtn->setStyleSheet(
-        "QPushButton{background:#2a7;color:white;font-size:22px;font-weight:bold;padding:14px 50px;border-radius:8px;}"
-        "QPushButton:hover{background:#3c9;}");
+        "QPushButton {"
+        "min-width: 200px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 80, 100, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 160, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 140, 220);"
+        "}"
+    );
     connect(startBtn, &QPushButton::clicked, this, [this]() {
         if (m_p1Index == m_p2Index) {
             QMessageBox::warning(this, "Same Color", "Players cannot share the same color. Please pick different colors.");

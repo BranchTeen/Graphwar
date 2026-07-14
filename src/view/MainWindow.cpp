@@ -299,7 +299,7 @@ void MainWindow::onGameLoaded() {
 void MainWindow::onGameOver(const QString &winnerInfo) {
     auto *dialog = new QDialog(this);
     dialog->setWindowTitle("Game Over");
-    dialog->setStyleSheet("background:#141420;color:#ddd;");
+    dialog->setStyleSheet("background: rgba(15, 15, 26, 240); color: #ddd;");
     dialog->setMinimumWidth(420);
 
     auto *layout = new QVBoxLayout(dialog);
@@ -308,25 +308,49 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
 
     auto *title = new QLabel(winnerInfo, dialog);
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet("color:#4af;font-size:28px;font-weight:bold;");
+    title->setStyleSheet(
+        "color: white; font-size: 32px; font-weight: bold;"
+        "padding: 16px 32px; letter-spacing: 2px;"
+        "background: rgba(0, 0, 0, 140); border-radius: 16px;"
+    );
 
-    auto *hint = new QLabel("Do you want to play again?", dialog);
+    auto *hint = new QLabel("DO YOU WANT TO PLAY AGAIN?", dialog);
     hint->setAlignment(Qt::AlignCenter);
-    hint->setStyleSheet("color:#aaa;font-size:16px;");
+    hint->setStyleSheet("color: #e8e8ff; font-size: 16px;");
 
     auto *playAgainBtn = new QPushButton("PLAY AGAIN", dialog);
     playAgainBtn->setCursor(Qt::PointingHandCursor);
     playAgainBtn->setStyleSheet(
-        "QPushButton { background:#2a7; color:white; font-size:18px; font-weight:bold;"
-        "padding:12px 40px; border-radius:8px; }"
-        "QPushButton:hover { background:#3c9; }");
+        "QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 80, 100, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 160, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 140, 220);"
+        "}"
+    );
 
-    auto *backToStartBtn = new QPushButton("BACK TO START PAGE", dialog);
+    auto *backToStartBtn = new QPushButton("BACK TO START", dialog);
     backToStartBtn->setCursor(Qt::PointingHandCursor);
     backToStartBtn->setStyleSheet(
-        "QPushButton { background:#384; color:white; font-size:16px;"
-        "padding:10px 40px; border-radius:8px; }"
-        "QPushButton:hover { background:#4a5; }");
+        "QPushButton {"
+        "min-width: 300px; min-height: 56px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 255, 255, 220); font-weight: bold;"
+        "color: white; font-size: 20px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
 
     layout->addWidget(title);
     layout->addWidget(hint);
@@ -379,43 +403,49 @@ void MainWindow::setupAudioControls() {
     barLayout->setSpacing(10);
 
     auto *iconLabel = new QLabel(QString::fromUtf8("♪"), this);
-    iconLabel->setStyleSheet("color:#4af;font-size:18px;font-weight:bold;");
+    iconLabel->setStyleSheet("color: white; font-size: 18px; font-weight: bold;");
 
     bool bothMuted = bgmMuted && sfxMuted;
     m_muteBtn = new QPushButton(bothMuted ? QString::fromUtf8("🔇 UNMUTE") : QString::fromUtf8("🔊 MUTE"), this);
     m_muteBtn->setCursor(Qt::PointingHandCursor);
     m_muteBtn->setStyleSheet(
-        "QPushButton { background:#222236; color:#ddd; border:1px solid #33334d;"
-        "padding:4px 12px; border-radius:6px; font-size:12px; }"
-        "QPushButton:hover { background:#2e2e48; }"
-        "QPushButton:pressed { background:#3a3a5c; }"
+        "QPushButton {"
+        "background: rgba(40, 40, 60, 170); color: white; border: 1px solid rgba(255, 255, 255, 150);"
+        "padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 1px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
     );
 
     auto sliderStyle =
-        "QSlider::groove:horizontal { height:4px; background:#2a2a40; border-radius:2px; }"
-        "QSlider::handle:horizontal { background:#4af; width:14px; height:14px;"
-        "margin:-6px 0; border-radius:7px; }"
-        "QSlider::handle:horizontal:hover { background:#6cf; }";
+        "QSlider::groove:horizontal { height: 4px; background: rgba(40, 40, 60, 150); border-radius: 2px; }"
+        "QSlider::handle:horizontal { background: white; width: 14px; height: 14px;"
+        "margin: -6px 0; border-radius: 7px; }"
+        "QSlider::handle:horizontal:hover { background: rgba(70, 130, 200, 200); }";
 
     auto *bgmTag = new QLabel("BGM", this);
-    bgmTag->setStyleSheet("color:#8bf;font-size:11px;min-width:32px;");
+    bgmTag->setStyleSheet("color: #e8e8ff; font-size: 12px; font-weight: bold; min-width: 32px;");
     m_bgmVolumeSlider = new QSlider(Qt::Horizontal, this);
     m_bgmVolumeSlider->setRange(0, 100);
     m_bgmVolumeSlider->setValue(bgmVol);
     m_bgmVolumeSlider->setMinimumWidth(120);
     m_bgmVolumeSlider->setStyleSheet(sliderStyle);
     m_bgmVolumeLabel = new QLabel(QString("%1%").arg(bgmVol), this);
-    m_bgmVolumeLabel->setStyleSheet("color:#bbb;font-size:12px;min-width:36px;");
+    m_bgmVolumeLabel->setStyleSheet("color: #e8e8ff; font-size: 12px; font-weight: bold; min-width: 36px;");
 
     auto *sfxTag = new QLabel("SFX", this);
-    sfxTag->setStyleSheet("color:#fc8;font-size:11px;min-width:32px;");
+    sfxTag->setStyleSheet("color: #e8e8ff; font-size: 12px; font-weight: bold; min-width: 32px;");
     m_sfxVolumeSlider = new QSlider(Qt::Horizontal, this);
     m_sfxVolumeSlider->setRange(0, 100);
     m_sfxVolumeSlider->setValue(sfxVol);
     m_sfxVolumeSlider->setMinimumWidth(120);
     m_sfxVolumeSlider->setStyleSheet(sliderStyle);
     m_sfxVolumeLabel = new QLabel(QString("%1%").arg(sfxVol), this);
-    m_sfxVolumeLabel->setStyleSheet("color:#bbb;font-size:12px;min-width:36px;");
+    m_sfxVolumeLabel->setStyleSheet("color: #e8e8ff; font-size: 12px; font-weight: bold; min-width: 36px;");
 
     barLayout->addWidget(iconLabel);
     barLayout->addWidget(m_muteBtn);

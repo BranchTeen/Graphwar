@@ -6,11 +6,23 @@ FunctionInput::FunctionInput(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout(this);
     layout->setContentsMargins(10, 5, 10, 5);
 
-    auto *pauseBtn = new QPushButton("⏸ Pause", this);
-    pauseBtn->setFont(QFont("Consolas", 11));
+    auto *pauseBtn = new QPushButton("⏸ PAUSE", this);
+    pauseBtn->setFont(QFont("Consolas", 11, QFont::Bold));
+    pauseBtn->setCursor(Qt::PointingHandCursor);
     pauseBtn->setStyleSheet(
-        "QPushButton{background:#556;color:#fff;padding:6px 12px;border-radius:4px;}"
-        "QPushButton:hover{background:#779;}");
+        "QPushButton {"
+        "min-width: 80px; min-height: 40px; border-radius: 8px;"
+        "border: 1px solid rgba(255, 255, 255, 150); font-weight: bold;"
+        "color: white; font-size: 12px;"
+        "background: rgba(40, 40, 60, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(70, 130, 200, 200); border: 1px solid white;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(50, 100, 180, 220);"
+        "}"
+    );
     connect(pauseBtn, &QPushButton::clicked, this, [this]() {
         if (m_pauseCmd) m_pauseCmd();
     });
@@ -25,12 +37,28 @@ FunctionInput::FunctionInput(QWidget *parent) : QWidget(parent) {
     m_costLabel->setFont(QFont("Consolas", 12));
     layout->addWidget(m_costLabel);
 
-    m_fireBtn = new QPushButton("Fire!", this);
+    m_fireBtn = new QPushButton("FIRE!", this);
     m_fireBtn->setFont(QFont("Consolas", 12, QFont::Bold));
     m_fireBtn->setDefault(true);
+    m_fireBtn->setCursor(Qt::PointingHandCursor);
     m_fireBtn->setStyleSheet(
-        "QPushButton { background: #4a7; color: white; padding: 6px 20px; border-radius: 4px; }"
-        "QPushButton:disabled { background: #555; color: #888; }");
+        "QPushButton {"
+        "min-width: 80px; min-height: 40px; border-radius: 8px;"
+        "border: 2px solid rgba(255, 255, 255, 200); font-weight: bold;"
+        "color: white; font-size: 14px;"
+        "background: rgba(40, 100, 80, 170);"
+        "}"
+        "QPushButton:hover:!disabled {"
+        "background: rgba(70, 160, 130, 200); border: 2px solid white;"
+        "}"
+        "QPushButton:pressed:!disabled {"
+        "background: rgba(50, 130, 100, 220);"
+        "}"
+        "QPushButton:disabled {"
+        "background: rgba(30, 30, 40, 100); border: 2px solid rgba(100, 100, 100, 100);"
+        "color: #666;"
+        "}"
+    );
     layout->addWidget(m_fireBtn);
 
     m_messageLabel = new QLabel(this);

@@ -181,6 +181,9 @@ PropertyNotification MainWindow::get_notification() {
             updateCoordLabels();
             bool enabled = (s->phase == GamePhase::WaitingInput);
             m_input->setInputEnabled(enabled);
+            if (s->phase == GamePhase::WaitingInput) {
+                m_input->clear();
+            }
             if (s->phase == GamePhase::RoundEnd) {
                 QTimer::singleShot(1500, [this]() {
                     if (m_nextTurnCmd) m_nextTurnCmd();

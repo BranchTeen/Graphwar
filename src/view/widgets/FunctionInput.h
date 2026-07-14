@@ -20,6 +20,7 @@ public:
     void setInputEnabled(bool enabled);
     void setMessage(const QString &msg);
     void setCostPreview(int cost);
+    void clear() { m_input->clear(); }
 
 private slots:
     void onTextChanged(const QString &text);

@@ -21,6 +21,7 @@ public:
     void setMessage(const QString &msg);
     void setCostPreview(int cost);
     void clear() { m_input->clear(); }
+    void setFocus() { m_input->setFocus(); }
 
 private slots:
     void onTextChanged(const QString &text);

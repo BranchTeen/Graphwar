@@ -169,6 +169,7 @@ PropertyNotification MainWindow::get_notification() {
             updateTopBarColors();
             m_canvas->update();
             updateCoordLabels();
+            QTimer::singleShot(0, [this]() { m_input->setFocus(); });
             break;
         case PROP_ID_ROUND:
             m_roundLabel->setText(QString("Round %1").arg(s->roundNumber));
@@ -264,6 +265,7 @@ void MainWindow::startNewGame() {
     updateTopBarColors();
     updateCoordLabels();
     showPage(PageGame);
+    QTimer::singleShot(0, [this]() { m_input->setFocus(); });
 }
 
 void MainWindow::goToConfig() {
@@ -281,6 +283,7 @@ void MainWindow::goToPause() {
 void MainWindow::resumeFromPause() {
     if (m_resumeCmd) m_resumeCmd();
     showPage(PageGame);
+    QTimer::singleShot(0, [this]() { m_input->setFocus(); });
 }
 
 void MainWindow::backToStart() {
@@ -288,7 +291,10 @@ void MainWindow::backToStart() {
     if (m_resumeCmd) m_resumeCmd();
 }
 
-void MainWindow::onGameLoaded() { showPage(PageGame); }
+void MainWindow::onGameLoaded() { 
+    showPage(PageGame); 
+    QTimer::singleShot(0, [this]() { m_input->setFocus(); });
+}
 
 void MainWindow::onGameOver(const QString &winnerInfo) {
     auto *dialog = new QDialog(this);

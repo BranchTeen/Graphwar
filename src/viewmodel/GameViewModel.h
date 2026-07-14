@@ -23,8 +23,14 @@ public:
     std::function<void(int)> get_save_slot_command();
     std::function<void(int)> get_load_slot_command();
     std::function<void(int)> get_delete_slot_command();
+    std::function<void(int)> get_set_bgm_volume_command();
+    std::function<void(int)> get_set_sfx_volume_command();
+    std::function<void(bool)> get_set_bgm_muted_command();
+    std::function<void(bool)> get_set_sfx_muted_command();
 
     const int& costPreview() const noexcept { return m_costPreview; }
+
+    void playBackgroundMusic(const QUrl &source) { m_model->playBackgroundMusic(source); }
 
 private:
     void syncState();

@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <QDialog>
 #include <QFont>
+#include <QSlider>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Graphwar");
@@ -145,7 +146,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_stack->addWidget(m_pausePage);
     m_stack->addWidget(m_configPage);
     m_stack->setCurrentIndex(PageStart);
-    setCentralWidget(m_stack);
+
+    setupAudioControls();
+
+    auto *centralWidget = new QWidget(this);
+    auto *centralLayout = new QVBoxLayout(centralWidget);
+    centralLayout->setContentsMargins(0, 0, 0, 0);
+    centralLayout->setSpacing(0);
+    centralLayout->addWidget(m_audioBar);
+    centralLayout->addWidget(m_stack);
+    setCentralWidget(centralWidget);
 }
 
 MainWindow::~MainWindow() noexcept {}
@@ -201,6 +211,18 @@ PropertyNotification MainWindow::get_notification() {
         case PROP_ID_SAVE_RESULT:
             m_savePage->refreshSlots();
             m_pausePage->refreshSlots();
+            break;
+        case PROP_ID_BGM_VOLUME:
+            if (m_state) onBgmVolumeChanged(m_state->bgmVolume);
+            break;
+        case PROP_ID_BGM_MUTED:
+            if (m_state) onBgmMutedChanged(m_state->bgmMuted);
+            break;
+        case PROP_ID_SFX_VOLUME:
+            if (m_state) onSfxVolumeChanged(m_state->sfxVolume);
+            break;
+        case PROP_ID_SFX_MUTED:
+            if (m_state) onSfxMutedChanged(m_state->sfxMuted);
             break;
         }
     };
@@ -331,4 +353,115 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
         return;
     }
     QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::setupAudioControls() {
+    int bgmVol = m_state ? m_state->bgmVolume : 60;
+    bool bgmMuted = m_state ? m_state->bgmMuted : false;
+    int sfxVol = m_state ? m_state->sfxVolume : 80;
+    bool sfxMuted = m_state ? m_state->sfxMuted : false;
+
+    m_audioBar = new QWidget(this);
+    m_audioBar->setFixedHeight(40);
+    m_audioBar->setStyleSheet("QWidget { background:#15151f; border-bottom:1px solid #24243a; }");
+
+    auto *barLayout = new QHBoxLayout(m_audioBar);
+    barLayout->setContentsMargins(12, 4, 12, 4);
+    barLayout->setSpacing(10);
+
+    auto *iconLabel = new QLabel(QString::fromUtf8("♪"), this);
+    iconLabel->setStyleSheet("color:#4af;font-size:18px;font-weight:bold;");
+
+    bool bothMuted = bgmMuted && sfxMuted;
+    m_muteBtn = new QPushButton(bothMuted ? QString::fromUtf8("🔇 UNMUTE") : QString::fromUtf8("🔊 MUTE"), this);
+    m_muteBtn->setCursor(Qt::PointingHandCursor);
+    m_muteBtn->setStyleSheet(
+        "QPushButton { background:#222236; color:#ddd; border:1px solid #33334d;"
+        "padding:4px 12px; border-radius:6px; font-size:12px; }"
+        "QPushButton:hover { background:#2e2e48; }"
+        "QPushButton:pressed { background:#3a3a5c; }"
+    );
+
+    auto sliderStyle =
+        "QSlider::groove:horizontal { height:4px; background:#2a2a40; border-radius:2px; }"
+        "QSlider::handle:horizontal { background:#4af; width:14px; height:14px;"
+        "margin:-6px 0; border-radius:7px; }"
+        "QSlider::handle:horizontal:hover { background:#6cf; }";
+
+    auto *bgmTag = new QLabel("BGM", this);
+    bgmTag->setStyleSheet("color:#8bf;font-size:11px;min-width:32px;");
+    m_bgmVolumeSlider = new QSlider(Qt::Horizontal, this);
+    m_bgmVolumeSlider->setRange(0, 100);
+    m_bgmVolumeSlider->setValue(bgmVol);
+    m_bgmVolumeSlider->setMinimumWidth(120);
+    m_bgmVolumeSlider->setStyleSheet(sliderStyle);
+    m_bgmVolumeLabel = new QLabel(QString("%1%").arg(bgmVol), this);
+    m_bgmVolumeLabel->setStyleSheet("color:#bbb;font-size:12px;min-width:36px;");
+
+    auto *sfxTag = new QLabel("SFX", this);
+    sfxTag->setStyleSheet("color:#fc8;font-size:11px;min-width:32px;");
+    m_sfxVolumeSlider = new QSlider(Qt::Horizontal, this);
+    m_sfxVolumeSlider->setRange(0, 100);
+    m_sfxVolumeSlider->setValue(sfxVol);
+    m_sfxVolumeSlider->setMinimumWidth(120);
+    m_sfxVolumeSlider->setStyleSheet(sliderStyle);
+    m_sfxVolumeLabel = new QLabel(QString("%1%").arg(sfxVol), this);
+    m_sfxVolumeLabel->setStyleSheet("color:#bbb;font-size:12px;min-width:36px;");
+
+    barLayout->addWidget(iconLabel);
+    barLayout->addWidget(m_muteBtn);
+    barLayout->addSpacing(8);
+    barLayout->addWidget(bgmTag);
+    barLayout->addWidget(m_bgmVolumeSlider, 1);
+    barLayout->addWidget(m_bgmVolumeLabel);
+    barLayout->addSpacing(8);
+    barLayout->addWidget(sfxTag);
+    barLayout->addWidget(m_sfxVolumeSlider, 1);
+    barLayout->addWidget(m_sfxVolumeLabel);
+
+    connect(m_muteBtn, &QPushButton::clicked, this, &MainWindow::onGlobalMutedClicked);
+    connect(m_bgmVolumeSlider, &QSlider::valueChanged, this, [this](int v) {
+        if (m_setBgmVolumeCmd) m_setBgmVolumeCmd(v);
+    });
+    connect(m_sfxVolumeSlider, &QSlider::valueChanged, this, [this](int v) {
+        if (m_setSfxVolumeCmd) m_setSfxVolumeCmd(v);
+    });
+}
+
+void MainWindow::onGlobalMutedClicked() {
+    if (!m_state) return;
+    bool bothMuted = m_state->bgmMuted && m_state->sfxMuted;
+    bool target = !bothMuted;
+    if (m_setBgmMutedCmd) m_setBgmMutedCmd(target);
+    if (m_setSfxMutedCmd) m_setSfxMutedCmd(target);
+}
+
+void MainWindow::onBgmVolumeChanged(int v) {
+    if (m_bgmVolumeSlider && m_bgmVolumeSlider->value() != v) {
+        m_bgmVolumeSlider->blockSignals(true);
+        m_bgmVolumeSlider->setValue(v);
+        m_bgmVolumeSlider->blockSignals(false);
+    }
+    if (m_bgmVolumeLabel) m_bgmVolumeLabel->setText(QString("%1%").arg(v));
+}
+
+void MainWindow::onSfxVolumeChanged(int v) {
+    if (m_sfxVolumeSlider && m_sfxVolumeSlider->value() != v) {
+        m_sfxVolumeSlider->blockSignals(true);
+        m_sfxVolumeSlider->setValue(v);
+        m_sfxVolumeSlider->blockSignals(false);
+    }
+    if (m_sfxVolumeLabel) m_sfxVolumeLabel->setText(QString("%1%").arg(v));
+}
+
+void MainWindow::onBgmMutedChanged(bool) {
+    if (!m_state || !m_muteBtn) return;
+    bool both = m_state->bgmMuted && m_state->sfxMuted;
+    m_muteBtn->setText(both ? QString::fromUtf8("🔇 UNMUTE") : QString::fromUtf8("🔊 MUTE"));
+}
+
+void MainWindow::onSfxMutedChanged(bool) {
+    if (!m_state || !m_muteBtn) return;
+    bool both = m_state->bgmMuted && m_state->sfxMuted;
+    m_muteBtn->setText(both ? QString::fromUtf8("🔇 UNMUTE") : QString::fromUtf8("🔊 MUTE"));
 }

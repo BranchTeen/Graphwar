@@ -1,4 +1,5 @@
 #include "GameModel.h"
+#include "AudioManager.h"
 #include "SaveManager.h"
 #include "model/parser/Tokenizer.h"
 #include "model/parser/Evaluator.h"
@@ -192,6 +193,7 @@ bool GameModel::launch(const QString &expr) {
     emit phaseChanged(m_phase);
     m_message = "Firing...";
     emit messageChanged(m_message);
+    playSfx(SfxType::Launch);
 
     if (m_animTimer) m_animTimer->start();
     return true;
@@ -226,6 +228,7 @@ void GameModel::stepAnimation() {
             emit messageChanged(m_message);
             emit phaseChanged(m_phase);
             emit trajectoryUpdated();
+            playSfx(SfxType::Obstacle);
             return;
         }
     }
@@ -238,6 +241,7 @@ void GameModel::stepAnimation() {
             sq2.destroyed = true;
             emit squareHit(opponent, i);
             m_hasHit = true;
+            playSfx(SfxType::Hit);
         }
     }
 
@@ -253,6 +257,7 @@ void GameModel::stepAnimation() {
         emit phaseChanged(m_phase);
         emit trajectoryUpdated();
         emit gameOver(m_message);
+        playSfx(SfxType::GameOver);
         return;
     }
 
@@ -263,7 +268,12 @@ void GameModel::stepAnimation() {
         if (!m_trajectory.isEmpty())
             m_history.append(m_trajectory);
         m_phase = GamePhase::RoundEnd;
-        m_message = m_hasHit ? "Hit!" : "Miss!";
+        if (!m_hasHit) {
+            m_message = "Miss!";
+            playSfx(SfxType::Miss);
+        } else {
+            m_message = "Hit!";
+        }
         emit messageChanged(m_message);
         emit phaseChanged(m_phase);
         emit trajectoryUpdated();
@@ -281,6 +291,7 @@ void GameModel::stepAnimation() {
 // ======================== 回合切换 ========================
 void GameModel::nextTurn() {
     if (m_phase == GamePhase::GameOver) return;
+    playSfx(SfxType::TurnEnd);
 
     // 点数与轮次不同步：
     // - roundNumber 在 P1 操作结束、切回 P0 时增长
@@ -555,4 +566,63 @@ SaveInfo GameModel::slotInfo(int slot) {
 
 QVector<SaveInfo> GameModel::slotInfos() {
     return SaveManager::slotInfos();
+}
+
+// ======================== 音频管理 ========================
+int GameModel::bgmVolume() const {
+    return AudioManager::instance().bgmVolume();
+}
+
+void GameModel::setBgmVolume(int v) {
+    AudioManager::instance().setBgmVolume(v);
+    emit bgmVolumeChanged(v);
+}
+
+bool GameModel::bgmMuted() const {
+    return AudioManager::instance().bgmMuted();
+}
+
+void GameModel::setBgmMuted(bool m) {
+    AudioManager::instance().setBgmMuted(m);
+    emit bgmMutedChanged(m);
+}
+
+void GameModel::toggleBgmMuted() {
+    AudioManager::instance().toggleBgmMuted();
+    emit bgmMutedChanged(AudioManager::instance().bgmMuted());
+}
+
+int GameModel::sfxVolume() const {
+    return AudioManager::instance().sfxVolume();
+}
+
+void GameModel::setSfxVolume(int v) {
+    AudioManager::instance().setSfxVolume(v);
+    emit sfxVolumeChanged(v);
+}
+
+bool GameModel::sfxMuted() const {
+    return AudioManager::instance().sfxMuted();
+}
+
+void GameModel::setSfxMuted(bool m) {
+    AudioManager::instance().setSfxMuted(m);
+    emit sfxMutedChanged(m);
+}
+
+void GameModel::toggleSfxMuted() {
+    AudioManager::instance().toggleSfxMuted();
+    emit sfxMutedChanged(AudioManager::instance().sfxMuted());
+}
+
+void GameModel::playSfx(SfxType type) {
+    AudioManager::instance().playSfx(type);
+}
+
+void GameModel::playBackgroundMusic(const QUrl &source) {
+    AudioManager::instance().playBackgroundMusic(source);
+}
+
+void GameModel::stopBackgroundMusic() {
+    AudioManager::instance().stopBackgroundMusic();
 }

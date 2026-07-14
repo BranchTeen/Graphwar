@@ -4,6 +4,12 @@
     "dependencies": [
         {
             "name": "qtbase"
+        },
+        {
+            "name": "qtmultimedia"
+        },
+        {
+            "name": "ffmpeg"
         }
     ]
 }

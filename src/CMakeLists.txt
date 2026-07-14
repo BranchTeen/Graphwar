@@ -2,6 +2,7 @@ set(SOURCES
     main.cpp
     app/GraphwarApp.cpp
     common/frame.cpp
+    model/AudioManager.cpp
     model/GameModel.cpp
     common/SaveInfo.cpp
     model/SaveManager.cpp
@@ -21,6 +22,10 @@ set(SOURCES
     viewmodel/commands/SaveSlotCommand.cpp
     viewmodel/commands/LoadSlotCommand.cpp
     viewmodel/commands/DeleteSlotCommand.cpp
+    viewmodel/commands/SetBgmVolumeCommand.cpp
+    viewmodel/commands/SetSfxVolumeCommand.cpp
+    viewmodel/commands/SetBgmMutedCommand.cpp
+    viewmodel/commands/SetSfxMutedCommand.cpp
     view/MainWindow.cpp
     view/widgets/GameCanvas.cpp
     view/widgets/FunctionInput.cpp
@@ -40,9 +45,9 @@ set_target_properties(Graphwar PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINA
 
 target_precompile_headers(Graphwar PRIVATE precomp.h)
 
-target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(Graphwar PRIVATE Qt6::Widgets)
+target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(Graphwar PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia ${FFMPEG_LIBRARIES})
 
 if(WIN32)
     set_target_properties(Graphwar PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -82,4 +87,45 @@ if(DEFINED _qt_platform_plugin AND EXISTS "${_qt_platform_plugin}")
     )
 else()
     message(WARNING "Qt platform plugin ${_qt_plugin} not found; please manually copy to platforms/ directory.")
+endif()
+
+add_custom_command(TARGET Graphwar POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_FILE_DIR:Graphwar>/resources"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/resources/AIZO-8bit.m4a"
+            "$<TARGET_FILE_DIR:Graphwar>/resources/AIZO-8bit.m4a"
+    COMMENT "Copying BGM resource"
+)
+
+if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+    set(_qt_multimedia_plugins "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/Qt6/plugins/audio")
+    if(EXISTS "${_qt_multimedia_plugins}")
+        file(GLOB _audio_plugins "${_qt_multimedia_plugins}/*")
+        if(_audio_plugins)
+            add_custom_command(TARGET Graphwar POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E make_directory
+                        "$<TARGET_FILE_DIR:Graphwar>/audio"
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                        ${_audio_plugins}
+                        "$<TARGET_FILE_DIR:Graphwar>/audio/"
+                COMMENT "Deploying Qt audio plugins"
+            )
+        endif()
+    endif()
+
+    set(_qt_multimedia_plugins_media "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/Qt6/plugins/mediaservice")
+    if(EXISTS "${_qt_multimedia_plugins_media}")
+        file(GLOB _media_plugins "${_qt_multimedia_plugins_media}/*")
+        if(_media_plugins)
+            add_custom_command(TARGET Graphwar POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E make_directory
+                        "$<TARGET_FILE_DIR:Graphwar>/mediaservice"
+                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                        ${_media_plugins}
+                        "$<TARGET_FILE_DIR:Graphwar>/mediaservice/"
+                COMMENT "Deploying Qt mediaservice plugins"
+            )
+        endif()
+    endif()
 endif()

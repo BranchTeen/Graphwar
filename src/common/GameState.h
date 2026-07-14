@@ -26,4 +26,9 @@ struct GameState {
     int aliveCount[2] = {0, 0};
     QVector<SaveInfo> slotInfos;
     int slotCount = 0;
+
+    int bgmVolume = 60;
+    bool bgmMuted = false;
+    int sfxVolume = 80;
+    bool sfxMuted = false;
 };

@@ -36,6 +36,10 @@ void GameViewModel::syncState() {
     m_state.aliveCount[1] = m_model->aliveCount(1);
     m_state.slotInfos = m_model->slotInfos();
     m_state.slotCount = m_model->slotCount();
+    m_state.bgmVolume = m_model->bgmVolume();
+    m_state.bgmMuted = m_model->bgmMuted();
+    m_state.sfxVolume = m_model->sfxVolume();
+    m_state.sfxMuted = m_model->sfxMuted();
 }
 
 void GameViewModel::forwardModelSignals() {
@@ -75,5 +79,21 @@ void GameViewModel::forwardModelSignals() {
     QObject::connect(m_model, &GameModel::pausedChanged, [this](bool) {
         m_state.paused = m_model->paused();
         fire(PROP_ID_PAUSED);
+    });
+    QObject::connect(m_model, &GameModel::bgmVolumeChanged, [this](int v) {
+        m_state.bgmVolume = v;
+        fire(PROP_ID_BGM_VOLUME);
+    });
+    QObject::connect(m_model, &GameModel::bgmMutedChanged, [this](bool m) {
+        m_state.bgmMuted = m;
+        fire(PROP_ID_BGM_MUTED);
+    });
+    QObject::connect(m_model, &GameModel::sfxVolumeChanged, [this](int v) {
+        m_state.sfxVolume = v;
+        fire(PROP_ID_SFX_VOLUME);
+    });
+    QObject::connect(m_model, &GameModel::sfxMutedChanged, [this](bool m) {
+        m_state.sfxMuted = m;
+        fire(PROP_ID_SFX_MUTED);
     });
 }

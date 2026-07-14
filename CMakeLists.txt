@@ -7,6 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Multimedia)
+find_package(FFmpeg REQUIRED COMPONENTS avformat avcodec avutil swresample)
 
 add_subdirectory(src src)

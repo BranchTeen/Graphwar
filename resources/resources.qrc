@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file alias="app.ico">app.ico</file>
         <file alias="start_background.png">start_background.png</file>
+        <file alias="AIZO-8bit.m4a">AIZO-8bit.m4a</file>
     </qresource>
 </RCC>

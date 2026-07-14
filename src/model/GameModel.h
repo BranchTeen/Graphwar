@@ -10,6 +10,7 @@ class QTimer;
 #include "common/GamePhase.h"
 #include "common/GameConfig.h"
 #include "common/Square.h"
+#include "common/AudioState.h"
 
 // GameModel：MVVM 的 Model 层
 // - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）
@@ -79,7 +80,26 @@ public:
     static SaveInfo slotInfo(int slot);
     static QVector<SaveInfo> slotInfos();
 
+    // ===== 音频管理（通过 AudioManager） =====
+    int bgmVolume() const;
+    void setBgmVolume(int v);
+    bool bgmMuted() const;
+    void setBgmMuted(bool m);
+    void toggleBgmMuted();
+    int sfxVolume() const;
+    void setSfxVolume(int v);
+    bool sfxMuted() const;
+    void setSfxMuted(bool m);
+    void toggleSfxMuted();
+    void playSfx(SfxType type);
+    void playBackgroundMusic(const QUrl &source);
+    void stopBackgroundMusic();
+
 signals:
+    void bgmVolumeChanged(int v);
+    void bgmMutedChanged(bool m);
+    void sfxVolumeChanged(int v);
+    void sfxMutedChanged(bool m);
     void turnChanged(int player);
     void roundChanged(int round);
     void pointsChanged(int points);

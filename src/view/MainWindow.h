@@ -9,6 +9,10 @@ class SaveManagerPage;
 class PauseMenuPage;
 struct GameConfig;
 
+class QSlider;
+class QPushButton;
+class QLabel;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -28,6 +32,10 @@ public:
     void set_delete_slot_command(std::function<void(int)>&& cmd) noexcept { m_deleteSlotCmd = std::move(cmd); }
     void set_save_slot_command(std::function<void(int)>&& cmd) noexcept { m_saveSlotCmd = std::move(cmd); }
     void set_next_turn_command(std::function<void()>&& cmd) noexcept { m_nextTurnCmd = std::move(cmd); }
+    void set_bgm_volume_command(std::function<void(int)>&& cmd) noexcept { m_setBgmVolumeCmd = std::move(cmd); }
+    void set_sfx_volume_command(std::function<void(int)>&& cmd) noexcept { m_setSfxVolumeCmd = std::move(cmd); }
+    void set_bgm_muted_command(std::function<void(bool)>&& cmd) noexcept { m_setBgmMutedCmd = std::move(cmd); }
+    void set_sfx_muted_command(std::function<void(bool)>&& cmd) noexcept { m_setSfxMutedCmd = std::move(cmd); }
 
     PropertyNotification get_notification();
 
@@ -57,6 +65,13 @@ private:
     void updateTopBarColors();
     void updateCoordLabels();
 
+    void setupAudioControls();
+    void onBgmVolumeChanged(int v);
+    void onSfxVolumeChanged(int v);
+    void onBgmMutedChanged(bool m);
+    void onSfxMutedChanged(bool m);
+    void onGlobalMutedClicked();
+
     QStackedWidget *m_stack;
     const GameState *m_state = nullptr;
     const int *m_costPreviewPtr = nullptr;
@@ -75,4 +90,15 @@ private:
     std::function<void(int)> m_deleteSlotCmd;
     std::function<void(int)> m_saveSlotCmd;
     std::function<void()> m_nextTurnCmd;
+    std::function<void(int)> m_setBgmVolumeCmd;
+    std::function<void(int)> m_setSfxVolumeCmd;
+    std::function<void(bool)> m_setBgmMutedCmd;
+    std::function<void(bool)> m_setSfxMutedCmd;
+
+    QWidget *m_audioBar = nullptr;
+    QPushButton *m_muteBtn = nullptr;
+    QSlider *m_bgmVolumeSlider = nullptr;
+    QLabel *m_bgmVolumeLabel = nullptr;
+    QSlider *m_sfxVolumeSlider = nullptr;
+    QLabel *m_sfxVolumeLabel = nullptr;
 };

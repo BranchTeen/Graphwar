@@ -129,3 +129,70 @@ if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
         endif()
     endif()
 endif()
+
+if(WIN32)
+    set(_windeployqt_candidates "")
+    if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+        list(APPEND _windeployqt_candidates "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/qt6/bin/windeployqt.exe")
+        list(APPEND _windeployqt_candidates "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/windeployqt.exe")
+    endif()
+    if(DEFINED _qt_bin_dir)
+        list(APPEND _windeployqt_candidates "${_qt_bin_dir}/windeployqt.exe")
+    endif()
+
+    set(WINDEPLOYQT_EXECUTABLE "")
+    foreach(_candidate ${_windeployqt_candidates})
+        if(EXISTS "${_candidate}")
+            set(WINDEPLOYQT_EXECUTABLE "${_candidate}")
+            break()
+        endif()
+    endforeach()
+
+    if(WINDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET Graphwar POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+                    --no-translations
+                    --no-system-d3d-compiler
+                    --no-opengl-sw
+                    "$<TARGET_FILE:Graphwar>"
+            COMMENT "Running windeployqt to deploy Qt dependencies"
+        )
+    else()
+        message(WARNING "windeployqt not found; Qt DLLs will need to be manually deployed.")
+    endif()
+
+    if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+        set(_ffmpeg_dlls
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avcodec-62.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avformat-62.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avutil-60.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swresample-6.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swscale-9.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/bz2.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/z.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/zstd.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/libpng16.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/freetype.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/harfbuzz.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/brotlicommon.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/brotlidec.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/pcre2-16.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/double-conversion.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icudt78.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icuin78.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icuuc78.dll"
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/md4c.dll"
+        )
+
+        foreach(_dll ${_ffmpeg_dlls})
+            if(EXISTS "${_dll}")
+                add_custom_command(TARGET Graphwar POST_BUILD
+                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                            "${_dll}"
+                            "$<TARGET_FILE_DIR:Graphwar>/"
+                    COMMENT "Copying ${_dll}"
+                )
+            endif()
+        endforeach()
+    endif()
+endif()

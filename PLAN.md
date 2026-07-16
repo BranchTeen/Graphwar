@@ -92,6 +92,25 @@
 - 新的攻击开始后，上一条轨迹会被替换
 - 方便玩家参考上一次发射效果调整
 
+### 粒子特效系统
+- 攻击命中、障碍物破坏等事件触发粒子效果
+- 粒子包含位置、速度、颜色、大小、生命周期属性
+- 粒子使用 QPainter 渲染，随时间逐渐消散
+- 粒子系统是纯代码实现，无需额外资源文件
+
+### 音频系统
+- **背景音乐 (BGM)**：游戏开始时自动播放 `resources/AIZO-8bit.m4a`，支持音量调节（0-100）和静音切换
+- **音效 (SFX)**：使用程序合成的 WAV 音效，支持以下类型：
+  - `Launch` - 发射
+  - `Hit` - 命中
+  - `Obstacle` - 障碍物碰撞
+  - `Miss` - 未命中
+  - `TurnEnd` - 回合结束
+  - `GameOver` - 游戏结束
+  - `Button` - 按钮点击
+- 音效支持音量调节（0-100）和静音切换
+- 音频管理器采用单例模式（`AudioManager::instance()`）
+
 ### 暂停系统
 - 游戏过程中随时可以**暂停**
 - 两种触发方式：
@@ -141,6 +160,8 @@
 | 预设配置 | CMakePresets.json（Windows/Linux/macOS Release/Debug preset） |
 | 数学解析 | ShuntingYard 调车场算法 + Token 流求值 |
 | 图形渲染 | QWidget + QPainter 自定义绘制 |
+| 粒子系统 | QPointF + QPainter 自定义实现 |
+| 音频播放 | Qt6 Multimedia + QAudioSink |
 | 存档格式 | JSON 文件 |
 | 架构模式 | MVVM + PropertyTrigger + Command (Model-View-ViewModel) |
 | 预编译头 | precomp.h（标准库 + Qt6 + 项目公共头文件） |
@@ -151,7 +172,7 @@
 
 ```
 Graphwar/
-├── CMakeLists.txt                  # 根 CMake：project() + find_package(Qt6) + add_subdirectory(src)
+├── CMakeLists.txt                  # 根 CMake：project() + find_package(Qt6) + add_subdirectory(src) + 打包配置
 ├── CMakePresets.json               # 跨平台构建预设
 ├── PLAN.md
 ├── README.md
@@ -160,7 +181,8 @@ Graphwar/
 │   ├── app.ico                     # 应用图标
 │   ├── app.rc                      # Windows 资源脚本
 │   ├── resources.qrc               # Qt 资源文件
-│   └── start_background.png        # 开始页背景图
+│   ├── start_background.png        # 开始页背景图
+│   └── AIZO-8bit.m4a               # 背景音乐
 └── src/
     ├── CMakeLists.txt              # 可执行文件定义：源文件列表 + 预编译头 + Qt 链接 + 平台插件部署
     ├── precomp.h                   # 预编译头
@@ -174,11 +196,14 @@ Graphwar/
     │   ├── GamePhase.h             # 阶段枚举
     │   ├── GameState.h             # 游戏状态快照（含 slotInfos/slotCount，View 数据入口）
     │   ├── SaveInfo.h/cpp          # 存档元信息
-    │   └── Square.h                # 方块/障碍物数据（含 Rect）
+    │   ├── Square.h                # 方块/障碍物数据（含 Rect）
+    │   ├── Particle.h              # 粒子数据结构
+    │   └── AudioState.h            # 音效类型枚举
     ├── model/                      # Model 层：业务逻辑 + 工具类
     │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、JSON 序列化）
     │   ├── Player.h                # 玩家数据
     │   ├── SaveManager.h/cpp       # 存档文件 IO（静态工具类）
+    │   ├── AudioManager.h/cpp      # 音频管理器（单例模式，BGM + SFX）
     │   └── parser/                 # 数学表达式解析器
     │       ├── Token.h             # Token 类型
     │       ├── Tokenizer.h/cpp     # 词法分析
@@ -198,11 +223,15 @@ Graphwar/
     │       ├── SetConfigCommand.cpp
     │       ├── SaveSlotCommand.cpp
     │       ├── LoadSlotCommand.cpp
-    │       └── DeleteSlotCommand.cpp
+    │       ├── DeleteSlotCommand.cpp
+    │       ├── SetBgmVolumeCommand.cpp
+    │       ├── SetBgmMutedCommand.cpp
+    │       ├── SetSfxVolumeCommand.cpp
+    │       └── SetSfxMutedCommand.cpp
     ├── view/                       # View 层：QWidget，存储命令指针 + 注册通知回调
     │   ├── MainWindow.h/cpp        # 主窗口（QStackedWidget 五页切换），持有所需命令 + 通知入口
     │   └── widgets/                # 自定义 Widget
-    │       ├── GameCanvas.h/cpp    # 画布渲染
+    │       ├── GameCanvas.h/cpp    # 画布渲染（含粒子渲染）
     │       ├── FunctionInput.h/cpp # 输入面板
     │       ├── ConfigPage.h/cpp    # 配置页
     │       ├── SaveManagerPage.h/cpp  # 存档管理页
@@ -213,10 +242,10 @@ Graphwar/
 
 | 层 | 职责 | 文件 |
 |----|------|------|
-| **Model** | 游戏业务逻辑 + 数据 + 序列化 | `GameModel`, `SaveManager`, `parser/*` 等 |
+| **Model** | 游戏业务逻辑 + 数据 + 序列化 + 音频管理 | `GameModel`, `SaveManager`, `AudioManager`, `parser/*` 等 |
 | **ViewModel** | 继承 `PropertyTrigger`，转发 Model 信号 → `fire(id)`；暴露 `std::function` 命令 getter | `GameViewModel`, `commands/*` |
 | **View** | 存储 `const GameViewModel*` + `std::function` 命令，注册 `PropertyNotification` 回调更新 UI | `MainWindow`, `widgets/*` |
-| **Common** | PropertyTrigger 通知框架 | `frame`, `property_ids`, `Geometry` |
+| **Common** | PropertyTrigger 通知框架 + 共享数据结构 | `frame`, `property_ids`, `Particle`, `AudioState` |
 
 **通信模式：**
 
@@ -281,17 +310,67 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 4. **点数校验**：解析 Token 流计算函数总消耗，若超过当前可用点数则拒绝并提示
 5. 系统自动计算常数 C = cy - f(cx)，调整函数图像使其经过发射方格中心
 6. 进入动画阶段（QTimer @ 16ms）：从发射点向**对方方向**逐帧延伸轨迹
-7. **障碍物优先碰撞**：先检查是否碰到未被破坏的障碍物，碰到则**立即中止攻击**，破坏该障碍物，结束该回合
-8. 若未被障碍物阻挡，则检查是否命中对方方块；命中后标记被击中的方格（继续延伸直到边界，允许一次攻击命中多个方格）
-9. 检查胜负：若一方所有方格全被摧毁，游戏结束，弹 "PLAY AGAIN / BACK TO START PAGE" 对话框
-10. 否则：轨迹超出边界（|x| > 30 或 |y| > 25）后结束当前回合
+7. **障碍物优先碰撞**：先检查是否碰到未被破坏的障碍物，碰到则**立即中止攻击**，破坏该障碍物，结束该回合，触发粒子特效和音效
+8. 若未被障碍物阻挡，则检查是否命中对方方块；命中后标记被击中的方格（继续延伸直到边界，允许一次攻击命中多个方格），触发粒子特效和音效
+9. 检查胜负：若一方所有方格全被摧毁，游戏结束，弹 "PLAY AGAIN / BACK TO START PAGE" 对话框，触发 GameOver 音效
+10. 否则：轨迹超出边界（|x| > 30 或 |y| > 25）后结束当前回合，触发 Miss 音效
 11. `nextTurn()`：
     - 若当前是 P1：`roundNumber++`（轮数增长）
     - 若当前是 P0：`pointsLevel++`（点数增长）
-    - 切换当前玩家 → 系统重新随机挑选发射点 → WAITING_INPUT
+    - 切换当前玩家 → 系统重新随机挑选发射点 → WAITING_INPUT，触发 TurnEnd 音效
 12. 显示 "Hit!" 或 "Miss!"
 
-### 3. 画布渲染 (GameCanvas / View)
+### 3. 粒子系统
+
+**粒子数据结构：**
+```cpp
+struct Particle {
+    QPointF pos;      // 位置
+    QPointF vel;      // 速度
+    QColor color;     // 颜色
+    double size;      // 大小
+    double life;      // 当前生命周期
+    double maxLife;   // 最大生命周期
+};
+```
+
+**粒子更新：**
+- 每帧更新粒子位置：`pos += vel`
+- 每帧减少生命周期：`life -= deltaTime`
+- 粒子大小随生命周期衰减
+- 粒子透明度随生命周期衰减
+- 生命周期结束后移除粒子
+
+**粒子触发时机：**
+- 攻击命中：发射点产生粒子
+- 障碍物破坏：障碍物位置产生粒子
+- 方块摧毁：方块位置产生粒子
+
+### 4. 音频系统
+
+**音频管理器（单例模式）：**
+- `AudioManager::instance()` 获取全局唯一实例
+- **BGM 播放**：使用 QAudioSink + FFmpeg 解码 M4A 文件
+- **SFX 播放**：程序合成 WAV 音效，缓存避免重复合成
+
+**支持的音效类型：**
+
+| 音效类型 | 触发时机 |
+|---------|---------|
+| `Launch` | 玩家发射攻击 |
+| `Hit` | 命中对方方块 |
+| `Obstacle` | 碰撞障碍物 |
+| `Miss` | 攻击未命中 |
+| `TurnEnd` | 回合结束 |
+| `GameOver` | 游戏结束 |
+| `Button` | 按钮点击 |
+
+**音量控制：**
+- BGM 音量范围：0-100
+- SFX 音量范围：0-100
+- 支持独立静音/取消静音
+
+### 5. 画布渲染 (GameCanvas / View)
 
 **与 ViewModel 的绑定方式：**
 - GameCanvas 通过 `m_vm->get_model()` 获取所有状态（`model->currentPlayer()`, `model->playerSquares(pl)`, `model->trajectory()` 等）
@@ -313,25 +392,26 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 7. **上一条历史轨迹**（淡灰色，仅保留最近一次）
 8. **当前动画轨迹**（玩家 1 蓝调 / 玩家 2 红调，亮色，逐渐延伸）
 9. **轨迹上的"弹头"**（高亮圆点，沿曲线运动）
-10. 顶部状态栏：P1 存活数、Round N、点数、P2 存活数（P1/P2 颜色随配置动态变化）
-11. 游戏结束遮罩（由 MainWindow 的模态对话框处理，画布上不绘制大字）
+10. **粒子特效**（命中/障碍物破坏时显示）
+11. 顶部状态栏：P1 存活数、Round N、点数、P2 存活数（P1/P2 颜色随配置动态变化）
+12. 游戏结束遮罩（由 MainWindow 的模态对话框处理，画布上不绘制大字）
 
-### 4. 碰撞检测
+### 6. 碰撞检测
 
 - 每帧对动画新绘制的轨迹点进行检测
 - **优先检查障碍物**（从玩家发射方向，先检测障碍，再检测对方）
 - 对每个未被破坏的障碍物：检测点是否在矩形区域内
 - 对对方每个未摧毁方格：检测点是否在矩形区域内
 - 区域判定：`cx - w/2 ≤ px ≤ cx + w/2 && cy - h/2 ≤ py ≤ cy + h/2`（与方块可视大小一致）
-- 碰到障碍物后立即停止动画，标记破坏，结束该回合（不检查后续方块）
-- 命中对方方块后继续延伸直到出边界，累计所有命中数
+- 碰到障碍物后立即停止动画，标记破坏，结束该回合（不检查后续方块），触发粒子和音效
+- 命中对方方块后继续延伸直到出边界，累计所有命中数，触发粒子和音效
 
 **障碍物生成时的间距（非碰撞检测阶段，而是生成阶段）：**
 - 障碍物之间最小中心距 = `size + 0.7`，避免生成时互相重叠
 - 障碍物与玩家方格最小中心距 = `size * 0.5 + 0.3`（障碍物半宽 + 方格半宽 + 缓冲）
 - 两个间距均随 size 自动缩放
 
-### 5. 存档系统
+### 7. 存档系统
 
 - 三个槽位 `slot_0.json` / `slot_1.json` / `slot_2.json`
 - 存储在**可执行文件所在目录**的 `saves/` 子目录（跨平台通用）
@@ -341,7 +421,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 存档操作流程：View 调用 `m_saveSlotCmd(slot)` / `m_loadSlotCmd(slot)` / `m_deleteSlotCmd(slot)` → ViewModel 处理 → SaveManager 文件 IO → `fire(PROP_ID_SAVE_RESULT)` + `syncState()` 更新 `GameState::slotInfos` → 通知回调刷新 UI / 导航 / 弹窗
 - 存档字段请参考上面"存档系统"小节
 
-### 6. UI 布局
+### 8. UI 布局
 
 **流程：MainWindow 使用 QStackedWidget 切换五页**
 
@@ -434,10 +514,13 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 │  Squares per player (1-10):   [5] ±                 │
 │  Obstacles (0-30):           [10] ±                 │
 │  Obstacle size (0.5-5.0):   [1.8] ±                 │
-│                                                      │
+├──────────────────────────────────────────────────────┤
 │  ☑ Show square coordinates                          │
 │  ☐ Show grid lines                                  │
-│                                                      │
+├──────────────────────────────────────────────────────┤
+│  BGM Volume:    [██████████]  [Mute]                │
+│  SFX Volume:    [██████████]  [Mute]                │
+├──────────────────────────────────────────────────────┤
 │  P1 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
 │  P2 Color:  ■ ■ ■ ■ ■ ■ ■ ■  (8 preset swatches)   │
 ├──────────────────────────────────────────────────────┤
@@ -447,6 +530,7 @@ WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
 - 颜色使用 8 种预设色块（蓝/红/绿/橙/紫/青/黄/粉），点击选中
 - 两位玩家不能选择相同颜色，否则 START GAME 时提示
 - SpinBox 按钮使用 ± 符号（`setButtonSymbols(PlusMinus)`）
+- 音频音量滑块支持拖拽调节，范围 0-100，支持独立静音切换
 
 **交互流程（MVVM + PropertyTrigger + Command 数据流）：**
 
@@ -461,6 +545,10 @@ GraphwarApp::GraphwarApp()
   // 注入命令
   m_main_wnd.set_new_game_command(m_view_model.get_new_game_command());
   m_main_wnd.set_pause_command(m_view_model.get_pause_command());
+  m_main_wnd.set_bgm_volume_command(m_view_model.get_set_bgm_volume_command());
+  m_main_wnd.set_bgm_muted_command(m_view_model.get_set_bgm_muted_command());
+  m_main_wnd.set_sfx_volume_command(m_view_model.get_set_sfx_volume_command());
+  m_main_wnd.set_sfx_muted_command(m_view_model.get_set_sfx_muted_command());
   // ... 其他命令
 
   // 注册通知链
@@ -469,7 +557,7 @@ GraphwarApp::GraphwarApp()
 
 用户操作流程：
 1. 开始界面点击 NEW GAME → 切换到配置页，通过 `m_vm->get_model()->config()` 回显
-2. 配置页 START GAME → emit `configSaved(cfg)` → MainWindow 调用 `m_setConfigCmd(cfg)` + `startNewGame()` → 调用 `m_newGameCmd()` → GameModel::newGame() → 发射 Qt 信号 → ViewModel → `fire(PROP_ID_xxx)` → 通知回调更新 UI → 切到游戏页
+2. 配置页 START GAME → emit `configSaved(cfg)` → MainWindow 调用 `m_setConfigCmd(cfg)` + `startNewGame()` → 调用 `m_newGameCmd()` → GameModel::newGame() → 发射 Qt 信号 → ViewModel → `fire(PROP_ID_xxx)` → 通知回调更新 UI → 切到游戏页，播放 BGM
 3. 配置页 Back / ESC → 返回开始页，配置不保存
 4. 开始界面 Load / Manage Saves → 切到存档管理页
 5. 暂停按钮 → `m_pauseCmd()` → GameModel::pause() → `fire(PROP_ID_PAUSED)` → MainWindow 通知回调 → `showPage(PagePause)`
@@ -480,10 +568,15 @@ GraphwarApp::GraphwarApp()
 10. 存档管理页 DELETE → 确认 → `m_deleteSlotCmd(slot)` → SaveManager::deleteSlot() → `fire(PROP_ID_SAVE_RESULT)` → 刷新槽位
 11. 游戏过程：
     - 输入表达式 → 调用 `m_costPreviewCmd(text)` → ViewModel 计算消耗 → `fire(PROP_ID_COST_PREVIEW)` → 更新 Cost 标签
-    - 点击 FIRE / 回车 → `m_launchCmd(text)` → GameModel::launch() → 动画开始
-    - GameModel 动画 QTimer @ 16ms → `stepAnimation()` → 碰撞检测 → 出界/障碍物/胜利 → `fire(PROP_ID_TRAJECTORY)` → 画布更新
+    - 点击 FIRE / 回车 → `m_launchCmd(text)` → GameModel::launch() → 动画开始，播放 Launch 音效
+    - GameModel 动画 QTimer @ 16ms → `stepAnimation()` → 碰撞检测 → 出界/障碍物/胜利 → 触发粒子特效和对应音效 → `fire(PROP_ID_TRAJECTORY)` → 画布更新
+12. 音频控制：
+    - 调节 BGM 音量 → `m_setBgmVolumeCmd(v)` → AudioManager::setBgmVolume(v)
+    - 切换 BGM 静音 → `m_setBgmMutedCmd(m)` → AudioManager::setBgmMuted(m)
+    - 调节 SFX 音量 → `m_setSfxVolumeCmd(v)` → AudioManager::setSfxVolume(v)
+    - 切换 SFX 静音 → `m_setSfxMutedCmd(m)` → AudioManager::setSfxMuted(m)
 
-### 7. 应用图标
+### 9. 应用图标
 
 - `resources/app.ico` 同时服务两个用途：
   1. **Qt 运行时图标**：通过 `resources.qrc` 编译进二进制，`main.cpp` 调用 `app.setWindowIcon(QIcon(":/app.ico"))`，显示在窗口标题栏和任务栏
@@ -540,8 +633,9 @@ GraphwarApp::GraphwarApp()
 ```bat
 cd d:\Graphwar
 cmake --preset release-windows
-cmake --build build
-build\Graphwar.exe
+cd build
+ninja
+ninja graphwar_package
 ```
 
 ### Windows（使用 vcpkg + MinGW）
@@ -553,7 +647,7 @@ cmake -B build -S . -G "MinGW Makefiles" ^
     -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" ^
     -DVCPKG_TARGET_TRIPLET=x64-windows
 mingw32-make -C build
-build\Graphwar.exe
+mingw32-make -C build graphwar_package
 ```
 
 ### Linux（使用 vcpkg）
@@ -561,8 +655,9 @@ build\Graphwar.exe
 ```bash
 cd ~/Graphwar
 cmake --preset release-linux
-cmake --build build
-./build/Graphwar
+cd build
+ninja
+ninja graphwar_package
 ```
 
 ### macOS（使用 vcpkg）
@@ -570,13 +665,27 @@ cmake --build build
 ```bash
 cd ~/Graphwar
 cmake --preset release-macos
-cmake --build build
-./build/Graphwar
+cd build
+ninja
+ninja graphwar_package
 ```
 
-### 跨平台部署说明
+### 跨平台打包说明
 
-- **Windows**：CMake 构建完成后自动通过 `POST_BUILD` 命令复制 `qwindows.dll` 到 `build/platforms/` 目录
+- **打包目标**：`ninja graphwar_package`（Windows）或 `make graphwar_package`（其他平台）
+- **生成结果**：`build/Graphwar.zip`
+- **压缩包结构**：
+  ```
+  Graphwar.zip
+  └── Graphwar/
+      ├── Graphwar.exe (Windows) / Graphwar (Linux) / Graphwar.app (macOS)
+      ├── *.dll (Windows) / *.so* (Linux)
+      ├── resources/AIZO-8bit.m4a
+      ├── platforms/qwindows.dll (Windows) / libqcocoa.dylib (macOS) / libqxcb.so (Linux)
+      ├── audio/ (可选)
+      └── mediaservice/ (可选)
+  ```
+- **Windows**：CMake 构建完成后自动通过 `POST_BUILD` 命令复制 `qwindows.dll` 到 `build/platforms/` 目录，复制所有 DLL 到 `build/` 目录
 - **Linux / macOS**：`CMakeLists.txt` 配置了 `CMAKE_BUILD_WITH_INSTALL_RPATH` 和 `INSTALL_RPATH="$ORIGIN:$ORIGIN/lib"`，可执行文件运行时在自身所在目录及 `lib/` 子目录查找共享库
 - **存档位置**：三平台统一为 `可执行文件所在目录/saves/slot_{0,1,2}.json`
 
@@ -601,3 +710,6 @@ A: 可执行文件旁的 `platforms/qwindows.dll`（Windows）或 `libqcocoa.dyl
 
 **Q: 修改了 PLAN.md 但游戏行为不一致？**
 A: PLAN.md 中的规则描述需与 `GameModel.cpp` / `GameModel.h` / `GameConfig.h` 的实际实现一致；架构描述需与 `frame.h` / `GameViewModel.cpp` / `GraphwarApp.cpp` 一致；任何逻辑/配置变更后请同步更新 PLAN.md。
+
+**Q: 音频播放没有声音？**
+A: 检查系统音量设置；检查游戏配置页的 BGM/SFX 音量是否被静音；确保 `AIZO-8bit.m4a` 文件存在于 `resources/` 目录。

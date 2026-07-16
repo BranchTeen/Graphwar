@@ -818,6 +818,11 @@ void GameModel::stopReplay() {
     m_replayAnimX = 0;
     m_trajectory.clear();
     m_history.clear();
+    m_particles.clear();
+    if (m_phase == GamePhase::Replaying) {
+        m_phase = GamePhase::GameOver;
+        emit phaseChanged(m_phase);
+    }
 }
 
 void GameModel::replayPause() {

@@ -115,6 +115,7 @@ private:
     QWidget *m_replayBar = nullptr;
     QLabel *m_replayLabel = nullptr;
     QPushButton *m_replayPauseBtn = nullptr;
+    QPushButton *m_replayRestartBtn = nullptr;
     QPushButton *m_replayExitBtn = nullptr;
 
     QPushButton *m_muteBtn = nullptr;

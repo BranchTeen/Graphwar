@@ -7,7 +7,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QStandardPaths>
-
+#include <QTimer>
 
 GraphwarApp::GraphwarApp()
     : m_main_wnd()
@@ -80,7 +80,10 @@ GraphwarApp::GraphwarApp()
     }
 
     if (!bgmPath.isEmpty()) {
-        m_view_model.playBackgroundMusic(QUrl::fromLocalFile(bgmPath));
+        QUrl bgmUrl = QUrl::fromLocalFile(bgmPath);
+        QTimer::singleShot(0, [this, bgmUrl]() {
+            m_view_model.playBackgroundMusic(bgmUrl);
+        });
     }
 }
 

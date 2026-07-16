@@ -78,19 +78,22 @@ AudioManager &AudioManager::instance() {
 void AudioManager::playBackgroundMusic(const QUrl &source) {
     stopBackgroundMusic();
 
-    if (!source.isValid()) {
-        qDebug() << "[AudioManager] Invalid URL:" << source;
+    if (!source.isValid() || !source.isLocalFile()) {
+        qDebug() << "[AudioManager] Invalid or non-local URL:" << source;
         return;
     }
 
-    qDebug() << "[AudioManager] Playing:" << source;
+    QString localPath = source.toLocalFile();
+    qDebug() << "[AudioManager] Playing BGM:" << localPath
+             << "exists:" << QFileInfo::exists(localPath);
+
+    if (!QFileInfo::exists(localPath)) return;
 
     m_bgmAudioOutput = new QAudioOutput(this);
     m_bgmAudioOutput->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
 
     m_bgmPlayer = new QMediaPlayer(this);
     m_bgmPlayer->setAudioOutput(m_bgmAudioOutput);
-    m_bgmPlayer->setSource(source);
 
     connect(m_bgmPlayer, &QMediaPlayer::errorOccurred, this, [](QMediaPlayer::Error err, const QString &desc) {
         qDebug() << "[AudioManager] BGM error:" << err << desc;
@@ -104,6 +107,7 @@ void AudioManager::playBackgroundMusic(const QUrl &source) {
         }
     });
 
+    m_bgmPlayer->setSource(source);
     m_bgmPlayer->play();
 }
 

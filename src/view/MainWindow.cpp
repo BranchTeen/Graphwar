@@ -100,6 +100,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_replayLabel = new QLabel("Replay", this);
     m_replayLabel->setStyleSheet("color: #e8e8ff; font-size: 14px; font-weight: bold;");
 
+    m_replayRestartBtn = new QPushButton(QString::fromUtf8("↺"), this);
+    m_replayRestartBtn->setFixedSize(36, 36);
+    m_replayRestartBtn->setCursor(Qt::PointingHandCursor);
+    m_replayRestartBtn->setToolTip("Restart replay");
+    m_replayRestartBtn->setStyleSheet(
+        "QPushButton { background: rgba(60, 60, 90, 180); color: white; border-radius: 18px; font-size: 18px; }"
+        "QPushButton:hover { background: rgba(80, 130, 200, 200); }"
+    );
+    connect(m_replayRestartBtn, &QPushButton::clicked, this, [this]() {
+        if (m_startReplayCmd) m_startReplayCmd();
+        m_replayPauseBtn->setText(QString::fromUtf8("⏸"));
+    });
+
     m_replayExitBtn = new QPushButton("✕ Exit", this);
     m_replayExitBtn->setCursor(Qt::PointingHandCursor);
     m_replayExitBtn->setStyleSheet(
@@ -110,6 +123,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     connect(m_replayExitBtn, &QPushButton::clicked, this, &MainWindow::exitReplayMode);
 
     replayLayout->addWidget(m_replayPauseBtn);
+    replayLayout->addSpacing(4);
+    replayLayout->addWidget(m_replayRestartBtn);
     replayLayout->addSpacing(8);
     replayLayout->addWidget(m_replayLabel, 1);
     replayLayout->addWidget(m_replayExitBtn);
@@ -246,9 +261,15 @@ PropertyNotification MainWindow::get_notification() {
         }
         case PROP_ID_TRAJECTORY:
             m_canvas->update();
+            if (s->inReplay && m_replayLabel) {
+                m_replayLabel->setText(s->message);
+            }
             break;
         case PROP_ID_MESSAGE:
             m_input->setMessage(s->message);
+            if (s->inReplay && m_replayLabel) {
+                m_replayLabel->setText(s->message);
+            }
             break;
         case PROP_ID_COST_PREVIEW:
             m_input->setCostPreview(m_costPreviewPtr ? *m_costPreviewPtr : 0);
@@ -321,6 +342,8 @@ void MainWindow::updateCoordLabels() {
 
 void MainWindow::startNewGame() {
     if (m_newGameCmd) m_newGameCmd();
+    m_replayBar->hide();
+    m_input->show();
     updateTopBarColors();
     updateCoordLabels();
     showPage(PageGame);

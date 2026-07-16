@@ -6,6 +6,7 @@
 #include "widgets/ConfigPage.h"
 #include "widgets/SaveManagerPage.h"
 #include "widgets/PauseMenuPage.h"
+#include "widgets/GuidePage.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -114,16 +115,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     newGameBtn->setCursor(Qt::PointingHandCursor);
     auto *loadGameBtn = new QPushButton("LOAD GAME", this);
     loadGameBtn->setCursor(Qt::PointingHandCursor);
+    auto *guideBtn = new QPushButton("HOW TO PLAY", this);
+    guideBtn->setCursor(Qt::PointingHandCursor);
 
     startLayout->addStretch();
     startLayout->addWidget(titleLabel);
     startLayout->addWidget(subtitleLabel);
     startLayout->addWidget(newGameBtn, 0, Qt::AlignCenter);
     startLayout->addWidget(loadGameBtn, 0, Qt::AlignCenter);
+    startLayout->addWidget(guideBtn, 0, Qt::AlignCenter);
     startLayout->addStretch();
 
     connect(newGameBtn, &QPushButton::clicked, this, &MainWindow::goToConfig);
     connect(loadGameBtn, &QPushButton::clicked, this, &MainWindow::goToSaveManager);
+    connect(guideBtn, &QPushButton::clicked, this, &MainWindow::goToGuide);
 
     m_savePage = new SaveManagerPage(this);
     connect(m_savePage, &SaveManagerPage::backRequested, this, &MainWindow::backToStart);
@@ -139,12 +144,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     m_pausePage = new PauseMenuPage(this);
     connect(m_pausePage, &PauseMenuPage::backToTitle, this, &MainWindow::backToStart);
 
+    m_guidePage = new GuidePage(this);
+    connect(m_guidePage, &GuidePage::backRequested, this, &MainWindow::backToStart);
+
     m_stack = new QStackedWidget(this);
     m_stack->addWidget(startPage);
     m_stack->addWidget(gamePage);
     m_stack->addWidget(m_savePage);
     m_stack->addWidget(m_pausePage);
     m_stack->addWidget(m_configPage);
+    m_stack->addWidget(m_guidePage);
     m_stack->setCurrentIndex(PageStart);
 
     setupAudioControls();
@@ -274,6 +283,8 @@ void MainWindow::goToConfig() {
 }
 
 void MainWindow::goToSaveManager() { showPage(PageSaveMgr); }
+
+void MainWindow::goToGuide() { showPage(PageGuide); }
 
 void MainWindow::goToPause() {
     if (m_pauseCmd) m_pauseCmd();

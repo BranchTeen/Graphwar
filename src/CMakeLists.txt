@@ -32,6 +32,7 @@ set(SOURCES
     view/widgets/ConfigPage.cpp
     view/widgets/SaveManagerPage.cpp
     view/widgets/PauseMenuPage.cpp
+    view/widgets/GuidePage.cpp
     ../resources/resources.qrc
 )
 

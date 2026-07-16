@@ -246,7 +246,8 @@ Graphwar/
     │       ├── FunctionInput.h/cpp # 输入面板
     │       ├── ConfigPage.h/cpp    # 配置页
     │       ├── SaveManagerPage.h/cpp  # 存档管理页
-    │       └── PauseMenuPage.h/cpp    # 暂停菜单页
+    │       ├── PauseMenuPage.h/cpp    # 暂停菜单页
+    │       └── GuidePage.h/cpp        # 游戏引导页（游戏规则说明）
 ```
 
 **MVVM + PropertyTrigger + Command 职责划分：**
@@ -445,12 +446,14 @@ struct Particle {
 │      Fire functions at each other!                   │
 │                                                      │
 │               [ NEW GAME ]                          │
-│          [ Load / Manage Saves ]                    │
+│            [ LOAD GAME ]                            │
+│          [ HOW TO PLAY ]                            │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 - **NEW GAME** → 进入 Config 页（不直接进入游戏）
-- **Load / Manage Saves** → 进入存档管理页
+- **LOAD GAME** → 进入存档管理页
+- **HOW TO PLAY** → 进入游戏引导页，展示游戏规则说明
 - **无独立 Config 按钮**（已合并到 NEW GAME 流程）
 
 **第 1 页 — 游戏界面：**

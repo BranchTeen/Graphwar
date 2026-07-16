@@ -7,6 +7,7 @@ class FunctionInput;
 class ConfigPage;
 class SaveManagerPage;
 class PauseMenuPage;
+class GuidePage;
 struct GameConfig;
 
 class QSlider;
@@ -50,13 +51,14 @@ protected:
 
 private:
     enum PageIndex {
-        PageStart = 0, PageGame, PageSaveMgr, PagePause, PageConfig
+        PageStart = 0, PageGame, PageSaveMgr, PagePause, PageConfig, PageGuide
     };
 
     void showPage(PageIndex p);
     void startNewGame();
     void goToConfig();
     void goToSaveManager();
+    void goToGuide();
     void goToPause();
     void resumeFromPause();
     void backToStart();
@@ -81,6 +83,7 @@ private:
     SaveManagerPage *m_savePage;
     PauseMenuPage *m_pausePage;
     ConfigPage *m_configPage;
+    GuidePage *m_guidePage;
 
     std::function<void()> m_newGameCmd;
     std::function<void(const GameConfig&)> m_setConfigCmd;

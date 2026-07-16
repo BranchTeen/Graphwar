@@ -3,6 +3,7 @@
 #include "view/widgets/FunctionInput.h"
 #include "view/widgets/SaveManagerPage.h"
 #include "view/widgets/PauseMenuPage.h"
+#include <QFile>
 #include <QFileInfo>
 #include <QDir>
 #include <QStandardPaths>
@@ -76,7 +77,7 @@ GraphwarApp::GraphwarApp()
 
     if (!bgmPath.isEmpty()) {
         QUrl bgmUrl = QUrl::fromLocalFile(bgmPath);
-        QTimer::singleShot(0, this, [this, bgmUrl]() {
+        QTimer::singleShot(0, [this, bgmUrl]() {
             m_view_model.playBackgroundMusic(bgmUrl);
         });
     }

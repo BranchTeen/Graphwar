@@ -28,6 +28,11 @@ public:
     std::function<void(bool)> get_set_bgm_muted_command();
     std::function<void(bool)> get_set_sfx_muted_command();
 
+    std::function<void()> get_start_replay_command();
+    std::function<void()> get_stop_replay_command();
+    std::function<void()> get_replay_pause_command();
+    std::function<void()> get_replay_resume_command();
+
     const int& costPreview() const noexcept { return m_costPreview; }
 
     void playBackgroundMusic(const QUrl &source) { m_model->playBackgroundMusic(source); }

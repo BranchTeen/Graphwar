@@ -35,8 +35,8 @@ if(WIN32)
         COMMENT "Copying audio plugins..."
     )
     add_custom_command(TARGET package_prepare POST_BUILD
-        COMMAND cmd /C "if exist \"${CMAKE_BINARY_DIR}\\mediaservice\" ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}\\mediaservice\" \"${_package_dir}\\mediaservice\""
-        COMMENT "Copying mediaservice plugins..."
+        COMMAND cmd /C "if exist \"${CMAKE_BINARY_DIR}\\multimedia\" ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}\\multimedia\" \"${_package_dir}\\multimedia\""
+        COMMENT "Copying multimedia plugins..."
     )
     add_custom_command(TARGET package_prepare POST_BUILD
         COMMAND cmd /C "copy /Y \"${CMAKE_BINARY_DIR}\\*.dll\" \"${_package_dir}\\\""
@@ -48,8 +48,8 @@ elseif(APPLE)
         COMMENT "Copying audio plugins..."
     )
     add_custom_command(TARGET package_prepare POST_BUILD
-        COMMAND bash -c "if [ -d \"${CMAKE_BINARY_DIR}/mediaservice\" ]; then ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/mediaservice\" \"${_package_dir}/mediaservice\"; fi"
-        COMMENT "Copying mediaservice plugins..."
+        COMMAND bash -c "if [ -d \"${CMAKE_BINARY_DIR}/multimedia\" ]; then ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/multimedia\" \"${_package_dir}/multimedia\"; fi"
+        COMMENT "Copying multimedia plugins..."
     )
 else()
     add_custom_command(TARGET package_prepare POST_BUILD
@@ -57,8 +57,8 @@ else()
         COMMENT "Copying audio plugins..."
     )
     add_custom_command(TARGET package_prepare POST_BUILD
-        COMMAND bash -c "if [ -d \"${CMAKE_BINARY_DIR}/mediaservice\" ]; then ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/mediaservice\" \"${_package_dir}/mediaservice\"; fi"
-        COMMENT "Copying mediaservice plugins..."
+        COMMAND bash -c "if [ -d \"${CMAKE_BINARY_DIR}/multimedia\" ]; then ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/multimedia\" \"${_package_dir}/multimedia\"; fi"
+        COMMENT "Copying multimedia plugins..."
     )
     add_custom_command(TARGET package_prepare POST_BUILD
         COMMAND bash -c "cp -f \"${CMAKE_BINARY_DIR}\"/*.so* \"${_package_dir}/\" 2>/dev/null || true"

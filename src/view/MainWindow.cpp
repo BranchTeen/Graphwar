@@ -74,6 +74,49 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     gameLayout->addWidget(m_canvas, 1);
     gameLayout->addWidget(m_input);
 
+    m_replayBar = new QWidget(this);
+    m_replayBar->setFixedHeight(50);
+    m_replayBar->setStyleSheet("background:#1a1a2e; border-top:1px solid #333;");
+    auto *replayLayout = new QHBoxLayout(m_replayBar);
+    replayLayout->setContentsMargins(12, 6, 12, 6);
+
+    m_replayPauseBtn = new QPushButton(QString::fromUtf8("⏸"), this);
+    m_replayPauseBtn->setFixedSize(36, 36);
+    m_replayPauseBtn->setCursor(Qt::PointingHandCursor);
+    m_replayPauseBtn->setStyleSheet(
+        "QPushButton { background: rgba(60, 60, 90, 180); color: white; border-radius: 18px; font-size: 18px; }"
+        "QPushButton:hover { background: rgba(80, 130, 200, 200); }"
+    );
+    connect(m_replayPauseBtn, &QPushButton::clicked, this, [this]() {
+        if (m_replayPauseBtn->text() == QString::fromUtf8("⏸")) {
+            if (m_replayPauseCmd) m_replayPauseCmd();
+            m_replayPauseBtn->setText(QString::fromUtf8("▶"));
+        } else {
+            if (m_replayResumeCmd) m_replayResumeCmd();
+            m_replayPauseBtn->setText(QString::fromUtf8("⏸"));
+        }
+    });
+
+    m_replayLabel = new QLabel("Replay", this);
+    m_replayLabel->setStyleSheet("color: #e8e8ff; font-size: 14px; font-weight: bold;");
+
+    m_replayExitBtn = new QPushButton("✕ Exit", this);
+    m_replayExitBtn->setCursor(Qt::PointingHandCursor);
+    m_replayExitBtn->setStyleSheet(
+        "QPushButton { background: rgba(60, 30, 30, 180); color: white; border-radius: 8px;"
+        "padding: 6px 16px; font-size: 13px; font-weight: bold; }"
+        "QPushButton:hover { background: rgba(180, 40, 40, 200); }"
+    );
+    connect(m_replayExitBtn, &QPushButton::clicked, this, &MainWindow::exitReplayMode);
+
+    replayLayout->addWidget(m_replayPauseBtn);
+    replayLayout->addSpacing(8);
+    replayLayout->addWidget(m_replayLabel, 1);
+    replayLayout->addWidget(m_replayExitBtn);
+
+    gameLayout->addWidget(m_replayBar);
+    m_replayBar->hide();
+
     auto *startPage = new QWidget(this);
     startPage->setObjectName("startPage");
     startPage->setStyleSheet(
@@ -220,6 +263,13 @@ PropertyNotification MainWindow::get_notification() {
         case PROP_ID_GAME_OVER:
             m_canvas->update();
             onGameOver(s->message);
+            break;
+        case PROP_ID_REPLAY:
+            if (s->inReplay) {
+                enterReplayMode();
+            }
+            m_canvas->update();
+            updateReplayUI();
             break;
         case PROP_ID_SAVE_RESULT:
             m_savePage->refreshSlots();
@@ -421,16 +471,38 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
         "}"
     );
 
+    auto *viewReplayBtn = new QPushButton("VIEW REPLAY", dialog);
+    viewReplayBtn->setCursor(Qt::PointingHandCursor);
+    viewReplayBtn->setStyleSheet(
+        "QPushButton {"
+        "min-width: 300px; min-height: 48px; border-radius: 12px;"
+        "border: 2px solid rgba(255, 200, 100, 220); font-weight: bold;"
+        "color: #ffcc44; font-size: 18px;"
+        "background: rgba(60, 40, 10, 170);"
+        "}"
+        "QPushButton:hover {"
+        "background: rgba(100, 80, 20, 200); border: 2px solid #ffcc44;"
+        "}"
+        "QPushButton:pressed {"
+        "background: rgba(80, 60, 15, 220);"
+        "}"
+    );
+
     layout->addWidget(title);
     layout->addWidget(statsWidget);
     layout->addWidget(roundLabel);
     layout->addWidget(playAgainBtn, 0, Qt::AlignCenter);
+    layout->addWidget(viewReplayBtn, 0, Qt::AlignCenter);
     layout->addWidget(backToStartBtn, 0, Qt::AlignCenter);
 
     connect(playAgainBtn, &QPushButton::clicked, dialog, [=]() {
         dialog->accept();
         if (m_newGameCmd) m_newGameCmd();
         showPage(PageGame);
+    });
+    connect(viewReplayBtn, &QPushButton::clicked, dialog, [=]() {
+        dialog->accept();
+        if (m_startReplayCmd) m_startReplayCmd();
     });
     connect(backToStartBtn, &QPushButton::clicked, dialog, [=]() {
         dialog->accept();
@@ -439,6 +511,33 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
 
     dialog->exec();
     dialog->deleteLater();
+}
+
+void MainWindow::enterReplayMode() {
+    showPage(PageGame);
+    m_input->hide();
+    m_replayBar->show();
+    m_replayPauseBtn->setText(QString::fromUtf8("⏸"));
+    updateReplayUI();
+}
+
+void MainWindow::exitReplayMode() {
+    m_replayBar->hide();
+    m_input->show();
+    if (m_stopReplayCmd) m_stopReplayCmd();
+    showPage(PageStart);
+}
+
+void MainWindow::updateReplayUI() {
+    if (!m_state) return;
+    if (m_state->inReplay) {
+        m_replayLabel->setText(QString("Replay: Shot %1/%2")
+            .arg(m_state->replayCurrentShot + 1)
+            .arg(m_state->replayTotalShots));
+        if (m_state->replayCurrentShot >= m_state->replayTotalShots - 1) {
+            m_replayPauseBtn->setText(QString::fromUtf8("▶"));
+        }
+    }
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {

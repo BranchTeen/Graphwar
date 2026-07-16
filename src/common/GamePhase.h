@@ -5,5 +5,6 @@ enum class GamePhase {
     Animating,
     RoundEnd,
     Transition,
-    GameOver
+    GameOver,
+    Replaying
 };

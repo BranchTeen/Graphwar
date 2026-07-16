@@ -41,4 +41,9 @@ struct GameState {
     // ===== 回合过渡动画 =====
     bool inTransition = false;
     double transitionProgress = 0.0;
+
+    // ===== 回放系统 =====
+    bool inReplay = false;
+    int replayCurrentShot = -1;
+    int replayTotalShots = 0;
 };

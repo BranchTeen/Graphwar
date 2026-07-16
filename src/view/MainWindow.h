@@ -38,6 +38,11 @@ public:
     void set_bgm_muted_command(std::function<void(bool)>&& cmd) noexcept { m_setBgmMutedCmd = std::move(cmd); }
     void set_sfx_muted_command(std::function<void(bool)>&& cmd) noexcept { m_setSfxMutedCmd = std::move(cmd); }
 
+    void set_start_replay_command(std::function<void()>&& cmd) noexcept { m_startReplayCmd = std::move(cmd); }
+    void set_stop_replay_command(std::function<void()>&& cmd) noexcept { m_stopReplayCmd = std::move(cmd); }
+    void set_replay_pause_command(std::function<void()>&& cmd) noexcept { m_replayPauseCmd = std::move(cmd); }
+    void set_replay_resume_command(std::function<void()>&& cmd) noexcept { m_replayResumeCmd = std::move(cmd); }
+
     PropertyNotification get_notification();
 
     GameCanvas* get_canvas() noexcept { return m_canvas; }
@@ -64,6 +69,9 @@ private:
     void backToStart();
     void onGameLoaded();
     void onGameOver(const QString &winnerInfo);
+    void enterReplayMode();
+    void exitReplayMode();
+    void updateReplayUI();
     void updateTopBarColors();
     void updateCoordLabels();
 
@@ -98,7 +106,17 @@ private:
     std::function<void(bool)> m_setBgmMutedCmd;
     std::function<void(bool)> m_setSfxMutedCmd;
 
+    std::function<void()> m_startReplayCmd;
+    std::function<void()> m_stopReplayCmd;
+    std::function<void()> m_replayPauseCmd;
+    std::function<void()> m_replayResumeCmd;
+
     QWidget *m_audioBar = nullptr;
+    QWidget *m_replayBar = nullptr;
+    QLabel *m_replayLabel = nullptr;
+    QPushButton *m_replayPauseBtn = nullptr;
+    QPushButton *m_replayExitBtn = nullptr;
+
     QPushButton *m_muteBtn = nullptr;
     QSlider *m_bgmVolumeSlider = nullptr;
     QLabel *m_bgmVolumeLabel = nullptr;

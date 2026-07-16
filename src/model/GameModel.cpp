@@ -23,6 +23,10 @@ GameModel::GameModel(QObject *parent) : QObject(parent) {
     m_transitionTimer = new QTimer(this);
     m_transitionTimer->setInterval(16);
     connect(m_transitionTimer, &QTimer::timeout, this, &GameModel::stepTransition);
+
+    m_replayTimer = new QTimer(this);
+    m_replayTimer->setInterval(16);
+    connect(m_replayTimer, &QTimer::timeout, this, &GameModel::stepReplay);
 }
 
 // ======================== 新游戏 ========================
@@ -51,6 +55,13 @@ void GameModel::newGame(const GameConfig &cfg) {
     generateObstacles(m_config.obstacleCount, m_config.obstacleSize);
     pickRandomSquare();
     m_message = "Player 1's turn - enter a function";
+
+    // 初始化回放数据：保存初始布局
+    m_replayData = ReplayData();
+    m_replayData.config = cfg;
+    for (int i = 0; i < 2; ++i)
+        m_replayData.playerSquares[i] = m_players[i].squares;
+    m_replayData.obstacles = m_obstacles;
 
     // 发射状态变化信号
     emit turnChanged(m_currentPlayer);
@@ -195,6 +206,14 @@ bool GameModel::launch(const QString &expr) {
     m_trajectory.clear();
     m_animX = 0;
     m_hasHit = false;
+
+    // 记录回放数据
+    ReplayShot shot;
+    shot.playerIndex = m_currentPlayer;
+    shot.launchX = cx;
+    shot.launchY = cy;
+    shot.expression = expr;
+    m_replayData.shots.append(shot);
 
     m_stats.player[m_currentPlayer].launchCount++;
     m_stats.player[m_currentPlayer].totalPointsSpent += cost;
@@ -691,4 +710,121 @@ void GameModel::onParticleTimer() {
         if (m_particleTimer) m_particleTimer->stop();
     }
     emit trajectoryUpdated();
+}
+
+// ======================== 回放系统 ========================
+void GameModel::startReplay() {
+    if (!m_replayData.isValid() || m_replayData.shots.isEmpty()) return;
+
+    for (int i = 0; i < 2; ++i)
+        m_players[i].squares = m_replayData.playerSquares[i];
+    m_obstacles = m_replayData.obstacles;
+
+    m_replayShotIndex = 0;
+    m_replayAnimX = 0;
+    m_replayPaused = false;
+    m_replayFinished = false;
+    m_trajectory.clear();
+    m_history.clear();
+    m_particles.clear();
+    m_phase = GamePhase::Replaying;
+    m_message = QString("Replay: Shot %1/%2").arg(1).arg(m_replayData.shots.size());
+
+    emit phaseChanged(m_phase);
+    emit trajectoryUpdated();
+    emit messageChanged(m_message);
+
+    if (m_replayTimer) m_replayTimer->start();
+}
+
+void GameModel::stepReplay() {
+    if (m_phase != GamePhase::Replaying || m_replayPaused || m_replayFinished) return;
+    if (m_replayShotIndex >= m_replayData.shots.size()) {
+        m_replayFinished = true;
+        m_message = "Replay finished";
+        emit messageChanged(m_message);
+        return;
+    }
+
+    const auto &shot = m_replayData.shots[m_replayShotIndex];
+    double cx = shot.launchX, cy = shot.launchY;
+    int player = shot.playerIndex;
+    m_currentPlayer = player;
+
+    if (m_replayAnimX == 0) {
+        double fcx = evaluate(shot.expression, cx);
+        m_replayConstAdjust = cy - fcx;
+        double y0 = evaluate(shot.expression, cx) + m_replayConstAdjust;
+        m_trajectory.clear();
+        m_trajectory.push_back({cx, y0});
+    }
+
+    m_replayAnimX += m_animStep * 1.5;
+
+    double x = (player == 0) ? cx + m_replayAnimX : cx - m_replayAnimX;
+    double y = evaluate(shot.expression, x) + m_replayConstAdjust;
+    m_trajectory.push_back({x, y});
+
+    bool shotEnded = false;
+
+    for (int i = 0; i < m_obstacles.size(); ++i) {
+        auto &ob = m_obstacles[i];
+        if (!ob.destroyed && ob.rect.contains(x, y)) {
+            ob.destroyed = true;
+            spawnParticles(QPointF(x, y), QColor(120, 120, 120), 12);
+            shotEnded = true;
+            break;
+        }
+    }
+
+    int opponent = 1 - player;
+    if (!shotEnded) {
+        for (int i = 0; i < m_players[opponent].squares.size(); ++i) {
+            auto &sq = m_players[opponent].squares[i];
+            if (!sq.destroyed && sq.rect.contains(x, y)) {
+                sq.destroyed = true;
+                spawnParticles(QPointF(x, y), m_players[opponent].color, 15);
+            }
+        }
+    }
+
+    if (shotEnded || std::fabs(x) > 30 || std::fabs(y) > 25) {
+        m_history.clear();
+        if (!m_trajectory.isEmpty())
+            m_history.append(m_trajectory);
+
+        m_replayShotIndex++;
+        m_replayAnimX = 0;
+
+        if (m_replayShotIndex >= m_replayData.shots.size()) {
+            m_replayFinished = true;
+            m_message = "Replay finished";
+            if (m_replayTimer) m_replayTimer->stop();
+        } else {
+            m_message = QString("Replay: Shot %1/%2")
+                .arg(m_replayShotIndex + 1).arg(m_replayData.shots.size());
+        }
+        emit messageChanged(m_message);
+    }
+
+    emit trajectoryUpdated();
+}
+
+void GameModel::stopReplay() {
+    if (m_replayTimer) m_replayTimer->stop();
+    m_replayPaused = false;
+    m_replayFinished = false;
+    m_replayShotIndex = 0;
+    m_replayAnimX = 0;
+    m_trajectory.clear();
+    m_history.clear();
+}
+
+void GameModel::replayPause() {
+    m_replayPaused = true;
+}
+
+void GameModel::replayResume() {
+    if (m_replayFinished) return;
+    m_replayPaused = false;
 }

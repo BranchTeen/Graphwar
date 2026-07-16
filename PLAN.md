@@ -216,7 +216,8 @@ Graphwar/
     │   ├── Square.h                # 方块/障碍物数据（含 Rect）
     │   ├── Particle.h           # 粒子数据结构
     │   ├── AudioState.h         # 音效类型枚举
-    │   └── GameStatistics.h     # 游戏统计数据结构（双方发射/命中/命中率等）
+    │   ├── GameStatistics.h     # 游戏统计数据结构（双方发射/命中/命中率等）
+    │   └── ReplayData.h         # 回放数据结构（Shots + 初始布局）
     ├── model/                      # Model 层：业务逻辑 + 工具类
     │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、统计数据收集、JSON 序列化）
     │   ├── Player.h                # 玩家数据
@@ -440,9 +441,63 @@ struct Particle {
 - 存档操作流程：View 调用 `m_saveSlotCmd(slot)` / `m_loadSlotCmd(slot)` / `m_deleteSlotCmd(slot)` → ViewModel 处理 → SaveManager 文件 IO → `fire(PROP_ID_SAVE_RESULT)` + `syncState()` 更新 `GameState::slotInfos` → 通知回调刷新 UI / 导航 / 弹窗
 - 存档字段请参考上面"存档系统"小节
 
-### 8. UI 布局
+### 8. 回放系统 (Replay)
 
-**流程：MainWindow 使用 QStackedWidget 切换五页**
+**功能描述：**
+- 当局游戏结束后，在 Game Over 弹窗中新增 "VIEW REPLAY" 按钮
+- 点击后进入回放模式，依次回放当局每一发射击的完整过程
+- 画布恢复到开局初始状态，逐步播放每一条弹道轨迹
+- 障碍物和方块按实际游戏过程中的顺序标记为已破坏
+
+**数据存储：**
+```cpp
+// common/ReplayData.h
+struct ReplayShot {
+    int playerIndex;
+    double launchX, launchY;  // 发射方块中心坐标
+    QString expression;       // 函数表达式
+};
+
+struct ReplayData {
+    GameConfig config;
+    QVector<Square> playerSquares[2];  // 初始方块布局
+    QVector<Square> obstacles;         // 初始障碍物布局
+    QVector<ReplayShot> shots;         // 所有发射记录
+};
+```
+
+**数据收集流程：**
+1. `GameModel::newGame()`：保存初始方块和障碍物布局到 `m_replayData`
+2. `GameModel::launch()`：记录每一发射击（玩家、发射点、表达式）到 `m_replayData.shots`
+3. 当局结束（GameOver）时，回放数据已完整就绪
+
+**回放播放流程：**
+1. Game Over 弹窗 → "VIEW REPLAY" → `GameModel::startReplay()`
+2. `startReplay()` 复位方块/障碍物到初始状态，设置 Phase=Replaying，启动定时器
+3. `stepReplay()` 每帧调用，类似 `stepAnimation()`：
+   - 从当前 shot 取出表达式和发射点，重新求值生成轨迹点
+   - 进行碰撞检测，更新方块/障碍物 destroyed 状态
+   - 每发射击结束后自动进入下一发
+4. 全部播放完毕后显示 "Replay finished"
+
+**UI 控制：**
+- 回放期间函数输入框隐藏，底部显示回放控制栏
+- 控制：Play/Pause（⏸/▶）、Exit（✕ Exit）
+- ESC 键退出回放，返回标题页
+- 轨迹颜色按当前 shot 的玩家自动切换
+
+**文件变更：**
+- 新增 `common/ReplayData.h` — 回放数据结构
+- 修改 `common/GamePhase.h` — 新增 `Replaying` 阶段
+- 修改 `common/GameState.h` — 新增 `inReplay`、`replayCurrentShot`、`replayTotalShots`
+- 修改 `common/property_ids.h` — 新增 `PROP_ID_REPLAY`
+- 修改 `model/GameModel.h/cpp` — 数据收集 + 回放播放
+- 修改 `viewmodel/GameViewModel.h/cpp` — 转发回放命令和状态
+- 修改 `view/MainWindow.h/cpp` — Game Over 弹窗加按钮 + 回放控制栏
+
+### 9. UI 布局
+
+**流程：MainWindow 使用 QStackedWidget 切换六页（Game 页内含回放控制栏，回放时替换输入框）**
 
 **第 0 页 — 开始界面：**
 ```
@@ -597,7 +652,7 @@ GraphwarApp::GraphwarApp()
     - 调节 SFX 音量 → `m_setSfxVolumeCmd(v)` → AudioManager::setSfxVolume(v)
     - 切换 SFX 静音 → `m_setSfxMutedCmd(m)` → AudioManager::setSfxMuted(m)
 
-### 9. 应用图标
+### 10. 应用图标
 
 - `resources/app.ico` 同时服务两个用途：
   1. **Qt 运行时图标**：通过 `resources.qrc` 编译进二进制，`main.cpp` 调用 `app.setWindowIcon(QIcon(":/app.ico"))`，显示在窗口标题栏和任务栏
@@ -704,7 +759,7 @@ ninja graphwar_package
       ├── resources/AIZO-8bit.m4a
       ├── platforms/qwindows.dll (Windows) / libqcocoa.dylib (macOS) / libqxcb.so (Linux)
       ├── audio/ (可选)
-      └── mediaservice/ (可选)
+      └── multimedia/ (可选)
   ```
 - **Windows**：CMake 构建完成后自动通过 `POST_BUILD` 命令复制 `qwindows.dll` 到 `build/platforms/` 目录，复制所有 DLL 到 `build/` 目录
 - **Linux / macOS**：`CMakeLists.txt` 配置了 `CMAKE_BUILD_WITH_INSTALL_RPATH` 和 `INSTALL_RPATH="$ORIGIN:$ORIGIN/lib"`，可执行文件运行时在自身所在目录及 `lib/` 子目录查找共享库
@@ -733,4 +788,4 @@ A: 可执行文件旁的 `platforms/qwindows.dll`（Windows）或 `libqcocoa.dyl
 A: PLAN.md 中的规则描述需与 `GameModel.cpp` / `GameModel.h` / `GameConfig.h` 的实际实现一致；架构描述需与 `frame.h` / `GameViewModel.cpp` / `GraphwarApp.cpp` 一致；任何逻辑/配置变更后请同步更新 PLAN.md。
 
 **Q: 音频播放没有声音？**
-A: 检查系统音量设置；检查游戏配置页的 BGM/SFX 音量是否被静音；确保 Qt Multimedia 后端正确部署（Windows 需要 `mediaservice/` 目录包含 `windowsmediafoundation.dll`，Linux 需要 `gstreamer` 后端，macOS 使用 `AVFoundation`）。
+A: 检查系统音量设置；检查游戏配置页的 BGM/SFX 音量是否被静音；确保 Qt Multimedia 后端正确部署（Windows 需要 `multimedia/` 目录包含 `windowsmediaplugin.dll` 或 `ffmpegmediaplugin.dll`，Linux 需要 `gstreamer` 后端，macOS 使用 `AVFoundation`）。

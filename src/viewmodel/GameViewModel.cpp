@@ -1,5 +1,6 @@
 #include "GameViewModel.h"
 #include <QObject>
+#include <functional>
 #include "common/property_ids.h"
 
 GameViewModel::GameViewModel() {
@@ -10,6 +11,22 @@ GameViewModel::GameViewModel() {
 
 GameViewModel::~GameViewModel() noexcept {
     delete m_model;
+}
+
+std::function<void()> GameViewModel::get_start_replay_command() {
+    return [this]() { m_model->startReplay(); };
+}
+
+std::function<void()> GameViewModel::get_stop_replay_command() {
+    return [this]() { m_model->stopReplay(); };
+}
+
+std::function<void()> GameViewModel::get_replay_pause_command() {
+    return [this]() { m_model->replayPause(); };
+}
+
+std::function<void()> GameViewModel::get_replay_resume_command() {
+    return [this]() { m_model->replayResume(); };
 }
 
 void GameViewModel::syncState() {
@@ -44,6 +61,9 @@ void GameViewModel::syncState() {
     m_state.statistics = m_model->statistics();
     m_state.inTransition = m_model->isTransition();
     m_state.transitionProgress = m_model->transitionProgress();
+    m_state.inReplay = (m_model->phase() == GamePhase::Replaying);
+    m_state.replayCurrentShot = m_model->replayShotIndex();
+    m_state.replayTotalShots = m_model->replayData().shots.size();
 }
 
 void GameViewModel::forwardModelSignals() {
@@ -62,6 +82,8 @@ void GameViewModel::forwardModelSignals() {
     QObject::connect(m_model, &GameModel::phaseChanged, [this](GamePhase) {
         syncState();
         fire(PROP_ID_PHASE);
+        m_state.inReplay = (m_model->phase() == GamePhase::Replaying);
+        fire(PROP_ID_REPLAY);
     });
     QObject::connect(m_model, &GameModel::messageChanged, [this](const QString&) {
         m_state.message = m_model->message();
@@ -74,6 +96,10 @@ void GameViewModel::forwardModelSignals() {
     QObject::connect(m_model, &GameModel::trajectoryUpdated, [this]() {
         m_state.trajectory = m_model->trajectory();
         m_state.particles = m_model->particles();
+        m_state.currentPlayer = m_model->currentPlayer();
+        m_state.obstacles = m_model->obstacles();
+        m_state.playerSquares[0] = m_model->playerSquares(0);
+        m_state.playerSquares[1] = m_model->playerSquares(1);
         fire(PROP_ID_TRAJECTORY);
     });
     QObject::connect(m_model, &GameModel::gameOver, [this](const QString&) {
@@ -101,4 +127,7 @@ void GameViewModel::forwardModelSignals() {
         m_state.sfxMuted = m;
         fire(PROP_ID_SFX_MUTED);
     });
+
+
 }
+

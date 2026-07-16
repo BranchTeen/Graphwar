@@ -32,6 +32,10 @@ GraphwarApp::GraphwarApp()
     m_main_wnd.set_sfx_volume_command(m_view_model.get_set_sfx_volume_command());
     m_main_wnd.set_bgm_muted_command(m_view_model.get_set_bgm_muted_command());
     m_main_wnd.set_sfx_muted_command(m_view_model.get_set_sfx_muted_command());
+    m_main_wnd.set_start_replay_command(m_view_model.get_start_replay_command());
+    m_main_wnd.set_stop_replay_command(m_view_model.get_stop_replay_command());
+    m_main_wnd.set_replay_pause_command(m_view_model.get_replay_pause_command());
+    m_main_wnd.set_replay_resume_command(m_view_model.get_replay_resume_command());
 
     m_main_wnd.get_input()->set_launch_command(m_view_model.get_launch_command());
     m_main_wnd.get_input()->set_update_cost_preview_command(m_view_model.get_update_cost_preview_command());

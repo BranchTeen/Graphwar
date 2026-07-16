@@ -13,6 +13,7 @@ class QTimer;
 #include "common/AudioState.h"
 #include "common/Particle.h"
 #include "common/GameStatistics.h"
+#include "common/ReplayData.h"
 
 // GameModel：MVVM 的 Model 层
 // - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）
@@ -87,6 +88,18 @@ public:
     static SaveInfo slotInfo(int slot);
     static QVector<SaveInfo> slotInfos();
 
+    // ===== 回放系统 =====
+    const ReplayData &replayData() const { return m_replayData; }
+    bool hasReplay() const { return m_replayData.isValid(); }
+    void startReplay();
+    void stepReplay();
+    void stopReplay();
+    bool isReplayPaused() const { return m_replayPaused; }
+    void replayPause();
+    void replayResume();
+    bool isReplayFinished() const { return m_replayFinished; }
+    int replayShotIndex() const { return m_replayShotIndex; }
+
     // ===== 音频管理（通过 AudioManager） =====
     int bgmVolume() const;
     void setBgmVolume(int v);
@@ -149,6 +162,13 @@ private:
     QTimer *m_animTimer = nullptr;   // Model 自身管理动画节奏
     QTimer *m_particleTimer = nullptr; // 粒子更新定时器
 
+    // ===== 回放系统 =====
+    ReplayData m_replayData;
+    int m_replayShotIndex = 0;
+    double m_replayAnimX = 0;
+    bool m_replayPaused = false;
+    bool m_replayFinished = false;
+
     // ===== 粒子效果 =====
     QVector<Particle> m_particles;
 
@@ -159,4 +179,8 @@ private:
     QTimer *m_transitionTimer = nullptr;
     double m_transitionProgress = 0.0;
     int m_nextPlayer = 0;
+
+    // ===== 回放动画 =====
+    QTimer *m_replayTimer = nullptr;
+    double m_replayConstAdjust = 0;
 };

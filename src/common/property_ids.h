@@ -16,4 +16,5 @@ enum {
     PROP_ID_BGM_MUTED,
     PROP_ID_SFX_VOLUME,
     PROP_ID_SFX_MUTED,
+    PROP_ID_REPLAY,
 };

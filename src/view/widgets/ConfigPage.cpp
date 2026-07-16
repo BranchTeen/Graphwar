@@ -92,23 +92,11 @@ void ConfigPage::build() {
         "QSpinBox {"
         "background: rgba(40, 40, 60, 150); color: white; font-size: 14px;"
         "padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 150); border-radius: 6px;"
-        "}"
-        "QSpinBox::up-button, QSpinBox::down-button {"
-        "border: none; background: rgba(70, 130, 200, 100); width: 16px;"
-        "}"
-        "QSpinBox::up-button:hover, QSpinBox::down-button:hover {"
-        "background: rgba(70, 130, 200, 200);"
         "}";
     auto dspinStyle = 
         "QDoubleSpinBox {"
         "background: rgba(40, 40, 60, 150); color: white; font-size: 14px;"
         "padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 150); border-radius: 6px;"
-        "}"
-        "QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {"
-        "border: none; background: rgba(70, 130, 200, 100); width: 16px;"
-        "}"
-        "QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {"
-        "background: rgba(70, 130, 200, 200);"
         "}";
     auto sepStyle = 
         "QCheckBox { color: #e8e8ff; font-size: 14px; font-weight: bold; spacing: 8px; }"

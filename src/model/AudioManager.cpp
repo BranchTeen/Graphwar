@@ -1,6 +1,7 @@
 #include "AudioManager.h"
 #include "common/AudioState.h"
 #include <QUrl>
+#include <QDebug>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -77,7 +78,12 @@ AudioManager &AudioManager::instance() {
 void AudioManager::playBackgroundMusic(const QUrl &source) {
     stopBackgroundMusic();
 
-    if (!source.isValid()) return;
+    if (!source.isValid()) {
+        qDebug() << "[AudioManager] Invalid URL:" << source;
+        return;
+    }
+
+    qDebug() << "[AudioManager] Playing:" << source;
 
     m_bgmAudioOutput = new QAudioOutput(this);
     m_bgmAudioOutput->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
@@ -86,7 +92,12 @@ void AudioManager::playBackgroundMusic(const QUrl &source) {
     m_bgmPlayer->setAudioOutput(m_bgmAudioOutput);
     m_bgmPlayer->setSource(source);
 
+    connect(m_bgmPlayer, &QMediaPlayer::errorOccurred, this, [](QMediaPlayer::Error err, const QString &desc) {
+        qDebug() << "[AudioManager] BGM error:" << err << desc;
+    });
+
     connect(m_bgmPlayer, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
+        qDebug() << "[AudioManager] BGM status:" << status;
         if (status == QMediaPlayer::EndOfMedia) {
             m_bgmPlayer->setPosition(0);
             m_bgmPlayer->play();

@@ -4,6 +4,7 @@
 #include "Square.h"
 #include "SaveInfo.h"
 #include "Particle.h"
+#include "GameStatistics.h"
 #include <QVector>
 #include <QPointF>
 #include <QString>
@@ -34,4 +35,6 @@ struct GameState {
     bool sfxMuted = false;
 
     QVector<Particle> particles;
+
+    GameStatistics statistics;
 };

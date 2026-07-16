@@ -300,11 +300,11 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
     auto *dialog = new QDialog(this);
     dialog->setWindowTitle("Game Over");
     dialog->setStyleSheet("background: rgba(15, 15, 26, 240); color: #ddd;");
-    dialog->setMinimumWidth(420);
+    dialog->setMinimumWidth(500);
 
     auto *layout = new QVBoxLayout(dialog);
     layout->setContentsMargins(30, 30, 30, 30);
-    layout->setSpacing(20);
+    layout->setSpacing(16);
 
     auto *title = new QLabel(winnerInfo, dialog);
     title->setAlignment(Qt::AlignCenter);
@@ -314,9 +314,67 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
         "background: rgba(0, 0, 0, 140); border-radius: 16px;"
     );
 
-    auto *hint = new QLabel("DO YOU WANT TO PLAY AGAIN?", dialog);
-    hint->setAlignment(Qt::AlignCenter);
-    hint->setStyleSheet("color: #e8e8ff; font-size: 16px;");
+    auto *statsWidget = new QWidget(dialog);
+    auto *statsLayout = new QHBoxLayout(statsWidget);
+    statsLayout->setSpacing(20);
+
+    auto createPlayerStats = [this, dialog](int playerIdx) -> QWidget* {
+        const auto &stats = m_state->statistics.player[playerIdx];
+        const auto &cfg = m_state->config;
+        auto *widget = new QWidget(dialog);
+        auto *layout = new QVBoxLayout(widget);
+        layout->setSpacing(8);
+
+        QString colorStyle = QString("color:rgba(%1,%2,%3,%4);font-weight:bold;")
+            .arg(playerIdx == 0 ? cfg.player1Color.red() : cfg.player2Color.red())
+            .arg(playerIdx == 0 ? cfg.player1Color.green() : cfg.player2Color.green())
+            .arg(playerIdx == 0 ? cfg.player1Color.blue() : cfg.player2Color.blue())
+            .arg(255);
+
+        auto *label = new QLabel(QString("Player %1").arg(playerIdx + 1), widget);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet(colorStyle + "font-size: 18px;");
+
+        auto *sep = new QFrame(widget);
+        sep->setFrameShape(QFrame::HLine);
+        sep->setStyleSheet("color: rgba(255,255,255,50);");
+
+        auto *launchLabel = new QLabel(QString("Launches: %1").arg(stats.launchCount), widget);
+        launchLabel->setAlignment(Qt::AlignCenter);
+        launchLabel->setStyleSheet("color: #aaa; font-size: 14px;");
+
+        auto *hitLabel = new QLabel(QString("Hits: %1").arg(stats.hitCount), widget);
+        hitLabel->setAlignment(Qt::AlignCenter);
+        hitLabel->setStyleSheet("color: #aaa; font-size: 14px;");
+
+        auto *obstacleLabel = new QLabel(QString("Obstacles: %1").arg(stats.obstacleHitCount), widget);
+        obstacleLabel->setAlignment(Qt::AlignCenter);
+        obstacleLabel->setStyleSheet("color: #aaa; font-size: 14px;");
+
+        auto *rateLabel = new QLabel(QString("Hit Rate: %1%").arg(stats.hitRate(), 0, 'f', 1), widget);
+        rateLabel->setAlignment(Qt::AlignCenter);
+        rateLabel->setStyleSheet("color: #ffcc00; font-size: 14px; font-weight: bold;");
+
+        auto *pointsLabel = new QLabel(QString("Points Spent: %1").arg(stats.totalPointsSpent), widget);
+        pointsLabel->setAlignment(Qt::AlignCenter);
+        pointsLabel->setStyleSheet("color: #aaa; font-size: 14px;");
+
+        layout->addWidget(label);
+        layout->addWidget(sep);
+        layout->addWidget(launchLabel);
+        layout->addWidget(hitLabel);
+        layout->addWidget(obstacleLabel);
+        layout->addWidget(rateLabel);
+        layout->addWidget(pointsLabel);
+        return widget;
+    };
+
+    statsLayout->addWidget(createPlayerStats(0));
+    statsLayout->addWidget(createPlayerStats(1));
+
+    auto *roundLabel = new QLabel(QString("Total Rounds: %1").arg(m_state->statistics.totalRounds), dialog);
+    roundLabel->setAlignment(Qt::AlignCenter);
+    roundLabel->setStyleSheet("color: #e8e8ff; font-size: 14px;");
 
     auto *playAgainBtn = new QPushButton("PLAY AGAIN", dialog);
     playAgainBtn->setCursor(Qt::PointingHandCursor);
@@ -353,7 +411,8 @@ void MainWindow::onGameOver(const QString &winnerInfo) {
     );
 
     layout->addWidget(title);
-    layout->addWidget(hint);
+    layout->addWidget(statsWidget);
+    layout->addWidget(roundLabel);
     layout->addWidget(playAgainBtn, 0, Qt::AlignCenter);
     layout->addWidget(backToStartBtn, 0, Qt::AlignCenter);
 

@@ -12,6 +12,7 @@ class QTimer;
 #include "common/Square.h"
 #include "common/AudioState.h"
 #include "common/Particle.h"
+#include "common/GameStatistics.h"
 
 // GameModel：MVVM 的 Model 层
 // - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）
@@ -52,6 +53,8 @@ public:
     QVector<QPointF> trajectory() const { return m_trajectory; }
     QVector<QVector<QPointF>> history() const { return m_history; }
     QVector<Particle> particles() const { return m_particles; }
+
+    const GameStatistics &statistics() const { return m_stats; }
 
     const GameConfig &config() const { return m_config; }
     void setConfig(const GameConfig &cfg) { m_config = cfg; }
@@ -145,4 +148,7 @@ private:
 
     // ===== 粒子效果 =====
     QVector<Particle> m_particles;
+
+    // ===== 统计数据 =====
+    GameStatistics m_stats;
 };

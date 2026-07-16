@@ -41,6 +41,7 @@ void GameModel::newGame(const GameConfig &cfg) {
     m_currentExpr.clear();
     m_animX = 0;
     m_hasHit = false;
+    m_stats.reset();
 
     generateSquares(m_config.squaresPerPlayer, m_config.player1Color, m_config.player2Color);
     generateObstacles(m_config.obstacleCount, m_config.obstacleSize);
@@ -191,6 +192,10 @@ bool GameModel::launch(const QString &expr) {
     m_animX = 0;
     m_hasHit = false;
 
+    m_stats.player[m_currentPlayer].launchCount++;
+    m_stats.player[m_currentPlayer].totalPointsSpent += cost;
+    m_stats.player[m_currentPlayer].usedFunctions.append(expr);
+
     double y0 = evaluate(expr, cx) + m_constAdjust;
     m_trajectory.push_back({cx, y0});
 
@@ -224,6 +229,7 @@ void GameModel::stepAnimation() {
         auto &ob = m_obstacles[i];
         if (!ob.destroyed && ob.rect.contains(x, y)) {
             ob.destroyed = true;
+            m_stats.player[m_currentPlayer].obstacleHitCount++;
             spawnParticles(QPointF(x, y), QColor(120, 120, 120), 12);
             if (m_animTimer) m_animTimer->stop();
             m_history.clear();
@@ -245,6 +251,7 @@ void GameModel::stepAnimation() {
         auto &sq2 = m_players[opponent].squares[i];
         if (!sq2.destroyed && sq2.rect.contains(x, y)) {
             sq2.destroyed = true;
+            m_stats.player[m_currentPlayer].hitCount++;
             spawnParticles(QPointF(x, y), m_players[opponent].color, 15);
             emit squareHit(opponent, i);
             m_hasHit = true;
@@ -259,6 +266,8 @@ void GameModel::stepAnimation() {
         if (!m_trajectory.isEmpty())
             m_history.append(m_trajectory);
         m_phase = GamePhase::GameOver;
+        m_stats.winner = m_currentPlayer;
+        m_stats.totalRounds = m_roundNumber;
         m_message = QString("Player %1 wins!").arg(m_currentPlayer + 1);
         emit messageChanged(m_message);
         emit phaseChanged(m_phase);

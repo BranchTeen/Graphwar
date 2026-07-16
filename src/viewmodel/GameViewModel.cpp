@@ -41,6 +41,7 @@ void GameViewModel::syncState() {
     m_state.bgmMuted = m_model->bgmMuted();
     m_state.sfxVolume = m_model->sfxVolume();
     m_state.sfxMuted = m_model->sfxMuted();
+    m_state.statistics = m_model->statistics();
 }
 
 void GameViewModel::forwardModelSignals() {

@@ -24,12 +24,22 @@
 - 障碍物随机分布在 x ∈ [-20, 20]，y ∈ [-20, 20]
 - 障碍物之间最小中心距 = `size + 0.7`（非硬编码，随障碍物大小动态调整）
 - 障碍物与玩家方格最小中心距 = `size * 0.5 + 0.3`（随障碍物大小动态调整）
-- **玩家攻击过程中，若在到达对方方格或触碰边界之前碰到障碍物：**
+- 玩家攻击过程中，若在到达对方方格或触碰边界之前碰到障碍物：
   - 攻击**立即中止**
   - 该障碍物被破坏（视觉上变为虚线轮廓）
   - 回合结束，轮到对方
 - **已被破坏的障碍物不阻挡攻击**（子弹会直接穿过）
 - 障碍物在游戏过程中保持已破坏状态，不会恢复
+
+### 游戏统计功能
+- 游戏结束时弹出统计弹窗，分别显示双方在本局中的统计数据
+- 统计内容包括：
+  - **发射次数**：玩家总共发射的次数
+  - **命中次数**：击中对方方块的次数
+  - **障碍物破坏次数**：击中障碍物的次数
+  - **命中率**：命中次数 / 发射次数 × 100%
+  - **消耗点数**：总共消耗的点数
+- 统计数据在每局游戏开始时重置，游戏结束时汇总显示
 
 ### 胜负条件
 - 先摧毁对方全部方格的一方获胜
@@ -194,13 +204,14 @@ Graphwar/
     │   ├── property_ids.h          # 属性 ID 枚举
     │   ├── GameConfig.h            # 配置数据
     │   ├── GamePhase.h             # 阶段枚举
-    │   ├── GameState.h             # 游戏状态快照（含 slotInfos/slotCount，View 数据入口）
+    │   ├── GameState.h             # 游戏状态快照（含 slotInfos/slotCount/statistics，View 数据入口）
     │   ├── SaveInfo.h/cpp          # 存档元信息
     │   ├── Square.h                # 方块/障碍物数据（含 Rect）
-    │   ├── Particle.h              # 粒子数据结构
-    │   └── AudioState.h            # 音效类型枚举
+    │   ├── Particle.h           # 粒子数据结构
+    │   ├── AudioState.h         # 音效类型枚举
+    │   └── GameStatistics.h     # 游戏统计数据结构（双方发射/命中/命中率等）
     ├── model/                      # Model 层：业务逻辑 + 工具类
-    │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、JSON 序列化）
+    │   ├── GameModel.h/cpp         # 核心业务逻辑（状态管理、动画、回合切换、碰撞检测、统计数据收集、JSON 序列化）
     │   ├── Player.h                # 玩家数据
     │   ├── SaveManager.h/cpp       # 存档文件 IO（静态工具类）
     │   ├── AudioManager.h/cpp      # 音频管理器（单例模式，BGM + SFX）
@@ -212,7 +223,7 @@ Graphwar/
     │       ├── ShuntingYard.h/cpp  # 调车场算法（主要使用）
     │       └── Evaluator.h/cpp     # 对外接口
     ├── viewmodel/                  # ViewModel 层：继承 PropertyTrigger，暴露属性 + 命令
-    │   ├── GameViewModel.h/cpp     # 持有 GameModel，转发 Model 信号 → PropertyTrigger::fire()
+    │   ├── GameViewModel.h/cpp     # 持有 GameModel，转发 Model 信号 → PropertyTrigger::fire()，同步统计数据到 GameState
     │   └── commands/               # 命令实现（每个文件一个 std::function getter）
     │       ├── NewGameCommand.cpp
     │       ├── LaunchCommand.cpp

@@ -128,4 +128,20 @@ if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
             )
         endif()
     endif()
+
+    file(GLOB _ffmpeg_dlls
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avcodec*.dll"
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avformat*.dll"
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avutil*.dll"
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swresample*.dll"
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swscale*.dll"
+    )
+    if(_ffmpeg_dlls)
+        add_custom_command(TARGET Graphwar POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    ${_ffmpeg_dlls}
+                    "$<TARGET_FILE_DIR:Graphwar>/"
+            COMMENT "Copying FFmpeg DLLs for Qt Multimedia FFmpeg backend"
+        )
+    endif()
 endif()

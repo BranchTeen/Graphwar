@@ -6,7 +6,8 @@
             "name": "qtbase"
         },
         {
-            "name": "qtmultimedia"
+            "name": "qtmultimedia",
+            "features": ["ffmpeg"]
         }
     ]
 }

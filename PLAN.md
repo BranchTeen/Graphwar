@@ -43,7 +43,7 @@
 
 ### 胜负条件
 - 先摧毁对方全部方格的一方获胜
-- 游戏结束后弹出 "PLAY AGAIN" 与 "BACK TO START PAGE" 两个选项
+- 游戏结束后弹出 "PLAY AGAIN"、"VIEW REPLAY" 与 "BACK TO START" 三个选项
 
 ### 开始界面
 - 游戏启动时显示开始界面，包含标题、简介和 "NEW GAME"、"Load / Manage Saves" 两个按钮（**已移除独立的 Config 按钮**）
@@ -320,7 +320,8 @@ Model 状态变更 → Qt signal → GameViewModel → PropertyTrigger::fire(id)
 **状态机：**
 ```
 WAITING_INPUT → ANIMATING → ROUND_END → WAITING_INPUT → ...
-                                        → GAME_OVER (当一方所有方块被摧毁)
+                                         → GAME_OVER (当一方所有方块被摧毁)
+                                          → REPLAYING (回放模式，Game Over 后进入)
 ```
 
 **详细流程：**
@@ -482,7 +483,7 @@ struct ReplayData {
 
 **UI 控制：**
 - 回放期间函数输入框隐藏，底部显示回放控制栏
-- 控制：Play/Pause（⏸/▶）、Exit（✕ Exit）
+- 控制：Play/Pause（⏸/▶）、Restart（↺，从头开始）、Exit（✕ Exit）
 - ESC 键退出回放，返回标题页
 - 轨迹颜色按当前 shot 的玩家自动切换
 
@@ -491,9 +492,9 @@ struct ReplayData {
 - 修改 `common/GamePhase.h` — 新增 `Replaying` 阶段
 - 修改 `common/GameState.h` — 新增 `inReplay`、`replayCurrentShot`、`replayTotalShots`
 - 修改 `common/property_ids.h` — 新增 `PROP_ID_REPLAY`
-- 修改 `model/GameModel.h/cpp` — 数据收集 + 回放播放
-- 修改 `viewmodel/GameViewModel.h/cpp` — 转发回放命令和状态
-- 修改 `view/MainWindow.h/cpp` — Game Over 弹窗加按钮 + 回放控制栏
+- 修改 `model/GameModel.h/cpp` — 数据收集 + 回放播放（`stepReplay` 包含粒子特效和碰撞检测）
+- 修改 `viewmodel/GameViewModel.h/cpp` — 转发回放命令和状态（`get_start_replay_command` 等）
+- 修改 `view/MainWindow.h/cpp` — Game Over 弹窗加 VIEW REPLAY 按钮 + 回放控制栏
 
 ### 9. UI 布局
 
@@ -702,7 +703,8 @@ GraphwarApp::GraphwarApp()
 - CMake ≥ 3.20
 - Ninja 或 MinGW（make）
 - vcpkg（环境变量 `VCPKG_ROOT` 指向 vcpkg 根目录）
-- Qt6（通过 vcpkg 安装的 `qtbase:x64-windows` / `qtbase:x64-linux` / `qtbase:x64-osx`）
+- Qt6（通过 vcpkg 安装的 `qtbase:x64-windows` / `qtbase:x64-linux` / `qtbase:x64-osx`；或直接使用官方 Qt 安装包）
+- 无需 FFmpeg（音频播放完全通过 Qt Multimedia 的 QMediaPlayer + QAudioSink 实现）
 
 ### Windows（使用 vcpkg + Ninja）
 
@@ -712,6 +714,16 @@ cmake --preset release-windows
 cd build
 ninja
 ninja graphwar_package
+```
+
+### Windows（使用官方 Qt + MinGW，无需 vcpkg）
+
+```bat
+cd d:\Graphwar
+cmake -B build -S . -G "MinGW Makefiles" ^
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DCMAKE_PREFIX_PATH="D:/Qt/6.11.1/mingw_64"
+mingw32-make -C build
 ```
 
 ### Windows（使用 vcpkg + MinGW）
@@ -761,7 +773,8 @@ ninja graphwar_package
       ├── audio/ (可选)
       └── multimedia/ (可选)
   ```
-- **Windows**：CMake 构建完成后自动通过 `POST_BUILD` 命令复制 `qwindows.dll` 到 `build/platforms/` 目录，复制所有 DLL 到 `build/` 目录
+- **Windows（vcpkg）**：CMake 构建完成后自动通过 `POST_BUILD` 命令复制 `qwindows.dll` 到 `build/platforms/` 目录，复制 `multimedia/` 插件和 FFmpeg DLL (`avcodec*.dll`/`avformat*.dll`/`swresample*.dll` 等) 到 `build/` 目录
+- **Windows（官方 Qt）**：无需复制插件，Qt 自带多媒体后端（WMF）
 - **Linux / macOS**：`CMakeLists.txt` 配置了 `CMAKE_BUILD_WITH_INSTALL_RPATH` 和 `INSTALL_RPATH="$ORIGIN:$ORIGIN/lib"`，可执行文件运行时在自身所在目录及 `lib/` 子目录查找共享库
 - **存档位置**：三平台统一为 `可执行文件所在目录/saves/slot_{0,1,2}.json`
 

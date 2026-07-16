@@ -46,8 +46,9 @@ set_target_properties(Graphwar PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINA
 
 target_precompile_headers(Graphwar PRIVATE precomp.h)
 
-target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia)
+target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${FFMPEG_INCLUDE_DIRS})
+target_link_directories(Graphwar PRIVATE ${FFMPEG_LIBRARY_DIRS})
+target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia ${FFMPEG_LIBRARIES})
 
 if(WIN32)
     set_target_properties(Graphwar PROPERTIES WIN32_EXECUTABLE TRUE)

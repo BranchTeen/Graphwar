@@ -2,15 +2,62 @@
 #include "common/AudioState.h"
 #include <QUrl>
 #include <QFile>
-#include <QDebug>
 #include <QFileInfo>
+#include <QDir>
+#include <QStandardPaths>
+#include <QTextStream>
+#include <QMediaDevices>
+#include <QAudioDevice>
 #include <QThread>
 #include <QTimer>
 #include <QMap>
-#include <QMediaDevices>
-#include <QAudioDevice>
+#include <atomic>
 #include <cmath>
 #include <random>
+
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+#include <libavutil/opt.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/samplefmt.h>
+}
+
+namespace {
+    QString extractResourceToTemp(const QString &resourcePath) {
+        QFile src(resourcePath);
+        if (!src.exists()) return QString();
+
+        QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+        if (tempDir.isEmpty()) tempDir = QDir::tempPath();
+
+        QFileInfo info(resourcePath);
+        QString outPath = tempDir + "/graphwar_" + info.fileName();
+        if (QFileInfo::exists(outPath) && QFileInfo(outPath).size() == src.size())
+            return outPath;
+
+        QFile::remove(outPath);
+        if (src.copy(outPath)) return outPath;
+        return QString();
+    }
+
+    QString resolveUrlToLocalPath(const QUrl &source) {
+        if (!source.isValid()) return QString();
+        QString urlStr = source.toString();
+        if (urlStr.startsWith("qrc:/")) {
+            QString resourcePath = ":" + urlStr.mid(4);
+            return extractResourceToTemp(resourcePath);
+        }
+        if (urlStr.startsWith(":/")) {
+            return extractResourceToTemp(urlStr);
+        }
+        if (source.isLocalFile()) {
+            return source.toLocalFile();
+        }
+        return urlStr;
+    }
+}
 
 class SfxPlayer : public QObject {
     Q_OBJECT
@@ -53,12 +100,138 @@ private:
     QIODevice *m_io = nullptr;
 };
 
+class AudioDecoderThread : public QThread {
+    Q_OBJECT
+public:
+    explicit AudioDecoderThread(const QString &filePath, AudioManager *manager, QObject *parent = nullptr)
+        : QThread(parent), m_filePath(filePath), m_manager(manager), m_stop(false), m_loop(true) {}
+
+    ~AudioDecoderThread() override {
+        requestStop();
+        wait(3000);
+    }
+
+    void requestStop() { m_stop.store(true); }
+    void setLoop(bool on) { m_loop.store(on); }
+
+protected:
+    void run() override {
+        AVFormatContext *fmtCtx = nullptr;
+        if (avformat_open_input(&fmtCtx, m_filePath.toUtf8().constData(), nullptr, nullptr) != 0)
+            return;
+        if (avformat_find_stream_info(fmtCtx, nullptr) < 0) {
+            avformat_close_input(&fmtCtx);
+            return;
+        }
+        int audioStreamIdx = -1;
+        for (unsigned i = 0; i < fmtCtx->nb_streams; ++i) {
+            if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                audioStreamIdx = static_cast<int>(i);
+                break;
+            }
+        }
+        if (audioStreamIdx < 0) {
+            avformat_close_input(&fmtCtx);
+            return;
+        }
+        AVStream *audioStream = fmtCtx->streams[audioStreamIdx];
+
+        const AVCodec *codec = avcodec_find_decoder(audioStream->codecpar->codec_id);
+        if (!codec) {
+            avformat_close_input(&fmtCtx);
+            return;
+        }
+        AVCodecContext *codecCtx = avcodec_alloc_context3(codec);
+        avcodec_parameters_to_context(codecCtx, audioStream->codecpar);
+        if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
+            avcodec_free_context(&codecCtx);
+            avformat_close_input(&fmtCtx);
+            return;
+        }
+
+        const int outSampleRate = (codecCtx->sample_rate > 0) ? codecCtx->sample_rate : 44100;
+        const int outChannels = 2;
+        const AVSampleFormat outFmt = AV_SAMPLE_FMT_S16;
+
+        SwrContext *swr = swr_alloc();
+        av_opt_set_chlayout(swr, "in_chlayout", &codecCtx->ch_layout, 0);
+        av_opt_set_int(swr, "in_sample_rate", codecCtx->sample_rate, 0);
+        av_opt_set_sample_fmt(swr, "in_sample_fmt", codecCtx->sample_fmt, 0);
+        AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
+        av_opt_set_chlayout(swr, "out_chlayout", &outLayout, 0);
+        av_opt_set_int(swr, "out_sample_rate", outSampleRate, 0);
+        av_opt_set_sample_fmt(swr, "out_sample_fmt", outFmt, 0);
+        swr_init(swr);
+
+        if (!m_manager->ensureBgmSinkCreated(outSampleRate, outChannels)) {
+            swr_free(&swr);
+            avcodec_free_context(&codecCtx);
+            avformat_close_input(&fmtCtx);
+            return;
+        }
+
+        AVPacket *pkt = av_packet_alloc();
+        AVFrame *frame = av_frame_alloc();
+
+        while (!m_stop.load()) {
+            int readErr = av_read_frame(fmtCtx, pkt);
+            if (readErr < 0) {
+                if (m_loop.load()) {
+                    avformat_seek_file(fmtCtx, audioStreamIdx, 0, 0,
+                                       fmtCtx->streams[audioStreamIdx]->duration, 0);
+                    avcodec_flush_buffers(codecCtx);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            if (pkt->stream_index != audioStreamIdx) {
+                av_packet_unref(pkt);
+                continue;
+            }
+            int sendErr = avcodec_send_packet(codecCtx, pkt);
+            av_packet_unref(pkt);
+            if (sendErr < 0) continue;
+
+            while (!m_stop.load()) {
+                int recvErr = avcodec_receive_frame(codecCtx, frame);
+                if (recvErr < 0) break;
+
+                uint8_t *outBuffer = nullptr;
+                int outSamples = swr_get_out_samples(swr, frame->nb_samples);
+                av_samples_alloc(&outBuffer, nullptr, outChannels, outSamples, outFmt, 0);
+                int converted = swr_convert(swr, &outBuffer, outSamples,
+                                          (const uint8_t **)frame->data, frame->nb_samples);
+                int byteCount = converted * outChannels * av_get_bytes_per_sample(outFmt);
+
+                if (byteCount > 0) {
+                    m_manager->writeBgmPcm(reinterpret_cast<const char *>(outBuffer), byteCount);
+                }
+                av_freep(&outBuffer);
+            }
+        }
+
+        av_frame_free(&frame);
+        av_packet_free(&pkt);
+        swr_free(&swr);
+        avcodec_free_context(&codecCtx);
+        avformat_close_input(&fmtCtx);
+    }
+
+private:
+    QString m_filePath;
+    AudioManager *m_manager;
+    std::atomic<bool> m_stop;
+    std::atomic<bool> m_loop;
+};
+
 AudioManager::AudioManager(QObject *parent)
     : QObject(parent),
       m_bgmVolume(60),
       m_bgmMuted(false),
-      m_bgmPlayer(nullptr),
-      m_bgmAudioOutput(nullptr),
+      m_decoder(nullptr),
+      m_bgmSink(nullptr),
+      m_bgmSinkIo(nullptr),
       m_sfxVolume(80),
       m_sfxMuted(false) {
 }
@@ -74,51 +247,70 @@ AudioManager &AudioManager::instance() {
 }
 
 void AudioManager::playBackgroundMusic(const QUrl &source) {
+    QString localPath = resolveUrlToLocalPath(source);
+    if (localPath.isEmpty()) return;
+
     stopBackgroundMusic();
-
-    if (!source.isValid() || !source.isLocalFile()) {
-        qDebug() << "[AudioManager] Invalid or non-local URL:" << source;
-        return;
-    }
-
-    QString localPath = source.toLocalFile();
-    qDebug() << "[AudioManager] Playing BGM:" << localPath
-             << "exists:" << QFileInfo::exists(localPath);
-
-    if (!QFileInfo::exists(localPath)) return;
-
-    m_bgmAudioOutput = new QAudioOutput(this);
-    m_bgmAudioOutput->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
-
-    m_bgmPlayer = new QMediaPlayer(this);
-    m_bgmPlayer->setAudioOutput(m_bgmAudioOutput);
-
-    connect(m_bgmPlayer, &QMediaPlayer::errorOccurred, this, [](QMediaPlayer::Error err, const QString &desc) {
-        qDebug() << "[AudioManager] BGM error:" << err << desc;
-    });
-
-    connect(m_bgmPlayer, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
-        qDebug() << "[AudioManager] BGM status:" << status;
-        if (status == QMediaPlayer::EndOfMedia) {
-            m_bgmPlayer->setPosition(0);
-            m_bgmPlayer->play();
-        }
-    });
-
-    m_bgmPlayer->setSource(source);
-    m_bgmPlayer->play();
+    m_currentFilePath = localPath;
+    m_decoder = new AudioDecoderThread(localPath, this, this);
+    m_decoder->start();
 }
 
 void AudioManager::stopBackgroundMusic() {
-    if (m_bgmPlayer) {
-        m_bgmPlayer->stop();
-        delete m_bgmPlayer;
-        m_bgmPlayer = nullptr;
+    if (m_decoder) {
+        m_decoder->requestStop();
+        if (!m_decoder->wait(1500)) {
+            m_decoder->terminate();
+            m_decoder->wait(500);
+        }
+        delete m_decoder;
+        m_decoder = nullptr;
     }
-    if (m_bgmAudioOutput) {
-        delete m_bgmAudioOutput;
-        m_bgmAudioOutput = nullptr;
+    QMutexLocker lock(&m_bgmSinkMutex);
+    if (m_bgmSink) {
+        m_bgmSink->stop();
+        delete m_bgmSink;
+        m_bgmSink = nullptr;
     }
+    if (m_bgmSinkIo) m_bgmSinkIo = nullptr;
+    m_currentFilePath.clear();
+}
+
+bool AudioManager::ensureBgmSinkCreated(int sampleRate, int channels) {
+    QMutexLocker lock(&m_bgmSinkMutex);
+
+    if (m_bgmSink) {
+        m_bgmSink->stop();
+        delete m_bgmSink;
+        m_bgmSink = nullptr;
+        m_bgmSinkIo = nullptr;
+    }
+
+    QAudioFormat fmt;
+    fmt.setSampleRate(sampleRate);
+    fmt.setChannelCount(channels);
+    fmt.setSampleFormat(QAudioFormat::Int16);
+
+    QAudioDevice dev = QMediaDevices::defaultAudioOutput();
+    m_bgmSink = new QAudioSink(dev, fmt, this);
+    m_bgmSink->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
+    m_bgmSinkIo = m_bgmSink->start();
+    if (!m_bgmSinkIo) return false;
+    return true;
+}
+
+void AudioManager::writeBgmPcm(const char *data, int bytes) {
+    if (!data || bytes <= 0) return;
+    QMutexLocker lock(&m_bgmSinkMutex);
+    if (!m_bgmSinkIo || !m_bgmSink) return;
+
+    while (m_bgmSink->bytesFree() < bytes && m_bgmSink->state() == QAudio::ActiveState) {
+        lock.unlock();
+        QThread::msleep(5);
+        lock.relock();
+        if (!m_bgmSinkIo) return;
+    }
+    m_bgmSinkIo->write(data, bytes);
 }
 
 int AudioManager::bgmVolume() const { return m_bgmVolume; }
@@ -127,8 +319,8 @@ void AudioManager::setBgmVolume(int v) {
     int clamped = qBound(0, v, 100);
     if (clamped == m_bgmVolume) return;
     m_bgmVolume = clamped;
-    if (m_bgmAudioOutput && !m_bgmMuted)
-        m_bgmAudioOutput->setVolume(m_bgmVolume / 100.0f);
+    QMutexLocker lock(&m_bgmSinkMutex);
+    if (m_bgmSink && !m_bgmMuted) m_bgmSink->setVolume(m_bgmVolume / 100.0f);
     emit bgmVolumeChanged(m_bgmVolume);
 }
 
@@ -137,8 +329,10 @@ bool AudioManager::bgmMuted() const { return m_bgmMuted; }
 void AudioManager::setBgmMuted(bool m) {
     if (m == m_bgmMuted) return;
     m_bgmMuted = m;
-    if (m_bgmAudioOutput)
-        m_bgmAudioOutput->setMuted(m_bgmMuted);
+    QMutexLocker lock(&m_bgmSinkMutex);
+    if (m_bgmSink) {
+        m_bgmSink->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
+    }
     emit bgmMutedChanged(m_bgmMuted);
 }
 

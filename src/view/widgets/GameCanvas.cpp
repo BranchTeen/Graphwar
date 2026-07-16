@@ -159,6 +159,43 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         p.drawEllipse(pt, size, size);
     }
 
+    if (s.inTransition) {
+        double t = s.transitionProgress;
+        double easeOut = 1.0 - (1.0 - t) * (1.0 - t);
+
+        QColor playerColor = s.playerColors[s.currentPlayer];
+        QColor nextColor = s.playerColors[1 - s.currentPlayer];
+
+        QLinearGradient gradient(0, 0, w, 0);
+        gradient.setColorAt(0, playerColor);
+        gradient.setColorAt(0.5, nextColor);
+        gradient.setColorAt(1, playerColor);
+
+        p.setBrush(QBrush(gradient));
+        p.setPen(Qt::NoPen);
+
+        int barHeight = 4;
+        int barWidth = static_cast<int>(w * 0.6);
+        int barX = (w - barWidth) / 2;
+        int barY = h - 80;
+
+        double fillWidth = barWidth * easeOut;
+        p.fillRect(barX, barY, fillWidth, barHeight, QColor(nextColor.red(), nextColor.green(), nextColor.blue(), 150));
+
+        p.setPen(QPen(QColor(255, 255, 255, 100), 1));
+        p.drawRect(barX, barY, barWidth, barHeight);
+
+        p.setFont(QFont("Arial", 18, QFont::Bold));
+        QString turnText = QString("PLAYER %1").arg(1 - s.currentPlayer + 1);
+        int textWidth = p.fontMetrics().horizontalAdvance(turnText);
+        int textX = (w - textWidth) / 2;
+        int textY = h - 100;
+
+        double textAlpha = easeOut * 0.8;
+        p.setPen(QPen(QColor(nextColor.red(), nextColor.green(), nextColor.blue(), static_cast<int>(textAlpha * 255))));
+        p.drawText(textX, textY, turnText);
+    }
+
     if (s.gameOver) {
         p.fillRect(rect(), QColor(0, 0, 0, 180));
         p.setPen(QPen(QColor(255, 255, 255), 3));

@@ -62,6 +62,8 @@ public:
     bool isGameOver() const { return m_phase == GamePhase::GameOver; }
     bool isWaitingInput() const { return m_phase == GamePhase::WaitingInput; }
     bool isAnimating() const { return m_phase == GamePhase::Animating; }
+    bool isTransition() const { return m_phase == GamePhase::Transition; }
+    double transitionProgress() const { return m_transitionProgress; }
 
     // ===== 业务操作（供 ViewModel 调用） =====
     void newGame(const GameConfig &cfg);
@@ -122,6 +124,7 @@ private:
     void spawnParticles(const QPointF &pos, const QColor &color, int count = 8);
     void updateParticles();
     void onParticleTimer();
+    void stepTransition();
 
     // ===== 持久化游戏状态 =====
     Player m_players[2];
@@ -151,4 +154,9 @@ private:
 
     // ===== 统计数据 =====
     GameStatistics m_stats;
+
+    // ===== 回合过渡动画 =====
+    QTimer *m_transitionTimer = nullptr;
+    double m_transitionProgress = 0.0;
+    int m_nextPlayer = 0;
 };

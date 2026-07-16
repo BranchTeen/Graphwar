@@ -37,4 +37,8 @@ struct GameState {
     QVector<Particle> particles;
 
     GameStatistics statistics;
+
+    // ===== 回合过渡动画 =====
+    bool inTransition = false;
+    double transitionProgress = 0.0;
 };

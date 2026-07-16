@@ -19,6 +19,10 @@ GameModel::GameModel(QObject *parent) : QObject(parent) {
     m_particleTimer = new QTimer(this);
     m_particleTimer->setInterval(16);
     connect(m_particleTimer, &QTimer::timeout, this, &GameModel::onParticleTimer);
+
+    m_transitionTimer = new QTimer(this);
+    m_transitionTimer->setInterval(16);
+    connect(m_transitionTimer, &QTimer::timeout, this, &GameModel::stepTransition);
 }
 
 // ======================== 新游戏 ========================
@@ -309,30 +313,43 @@ void GameModel::nextTurn() {
     if (m_phase == GamePhase::GameOver) return;
     playSfx(SfxType::TurnEnd);
 
-    // 点数与轮次不同步：
-    // - roundNumber 在 P1 操作结束、切回 P0 时增长
-    // - pointsLevel 在 P0 操作结束、切换到 P1 时增长
+    m_nextPlayer = 1 - m_currentPlayer;
+
     if (m_currentPlayer == 1) {
         m_roundNumber++;
         emit roundChanged(m_roundNumber);
     }
     if (m_currentPlayer == 0) {
         m_pointsLevel++;
-        emit pointsChanged(availablePoints());
     }
 
-    m_currentPlayer = 1 - m_currentPlayer;
-    m_phase = GamePhase::WaitingInput;
-    m_trajectory.clear();
-    pickRandomSquare();
-
-    emit turnChanged(m_currentPlayer);
-    if (m_currentPlayer == 0) {
-        emit pointsChanged(availablePoints());
-    }
+    m_phase = GamePhase::Transition;
+    m_transitionProgress = 0.0;
+    m_message = QString("Player %1's turn").arg(m_nextPlayer + 1);
     emit phaseChanged(m_phase);
-    m_message = QString("Player %1's turn - enter a function").arg(m_currentPlayer + 1);
     emit messageChanged(m_message);
+
+    m_transitionTimer->start();
+}
+
+void GameModel::stepTransition() {
+    m_transitionProgress += 0.02;
+    if (m_transitionProgress >= 1.0) {
+        m_transitionTimer->stop();
+        m_transitionProgress = 1.0;
+
+        m_currentPlayer = m_nextPlayer;
+        m_phase = GamePhase::WaitingInput;
+        m_trajectory.clear();
+        pickRandomSquare();
+
+        emit turnChanged(m_currentPlayer);
+        emit pointsChanged(availablePoints());
+        emit phaseChanged(m_phase);
+        m_message = QString("Player %1's turn - enter a function").arg(m_currentPlayer + 1);
+        emit messageChanged(m_message);
+    }
+    emit trajectoryUpdated();
 }
 
 // ======================== 暂停 / 恢复 ========================

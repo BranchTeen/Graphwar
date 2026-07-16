@@ -42,6 +42,8 @@ void GameViewModel::syncState() {
     m_state.sfxVolume = m_model->sfxVolume();
     m_state.sfxMuted = m_model->sfxMuted();
     m_state.statistics = m_model->statistics();
+    m_state.inTransition = m_model->isTransition();
+    m_state.transitionProgress = m_model->transitionProgress();
 }
 
 void GameViewModel::forwardModelSignals() {

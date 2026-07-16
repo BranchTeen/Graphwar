@@ -1,5 +1,6 @@
 #include "GameCanvas.h"
 #include "common/GameState.h"
+#include "common/Particle.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -111,6 +112,17 @@ void GameCanvas::paintEvent(QPaintEvent *) {
         p.setBrush(QBrush(s.playerColors[curPlayer]));
         p.setPen(QPen(QColor(255, 255, 255), 1));
         p.drawEllipse(bullet, 5, 5);
+    }
+
+    for (const auto &particle : s.particles) {
+        QPointF pt = worldToScreen(particle.pos.x(), particle.pos.y());
+        double alpha = particle.life / particle.maxLife;
+        QColor color = particle.color;
+        color.setAlphaF(alpha);
+        p.setBrush(QBrush(color));
+        p.setPen(Qt::NoPen);
+        double size = particle.size * m_scale * alpha;
+        p.drawEllipse(pt, size, size);
     }
 
     if (s.gameOver) {

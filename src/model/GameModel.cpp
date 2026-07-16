@@ -9,11 +9,16 @@
 #include <QJsonArray>
 #include <QTimer>
 #include <cmath>
+#include <algorithm>
 
 GameModel::GameModel(QObject *parent) : QObject(parent) {
     m_animTimer = new QTimer(this);
     m_animTimer->setInterval(16);  // ~60 FPS
     connect(m_animTimer, &QTimer::timeout, this, &GameModel::stepAnimation);
+
+    m_particleTimer = new QTimer(this);
+    m_particleTimer->setInterval(16);
+    connect(m_particleTimer, &QTimer::timeout, this, &GameModel::onParticleTimer);
 }
 
 // ======================== 新游戏 ========================
@@ -219,6 +224,7 @@ void GameModel::stepAnimation() {
         auto &ob = m_obstacles[i];
         if (!ob.destroyed && ob.rect.contains(x, y)) {
             ob.destroyed = true;
+            spawnParticles(QPointF(x, y), QColor(120, 120, 120), 12);
             if (m_animTimer) m_animTimer->stop();
             m_history.clear();
             if (!m_trajectory.isEmpty())
@@ -239,6 +245,7 @@ void GameModel::stepAnimation() {
         auto &sq2 = m_players[opponent].squares[i];
         if (!sq2.destroyed && sq2.rect.contains(x, y)) {
             sq2.destroyed = true;
+            spawnParticles(QPointF(x, y), m_players[opponent].color, 15);
             emit squareHit(opponent, i);
             m_hasHit = true;
             playSfx(SfxType::Hit);
@@ -625,4 +632,37 @@ void GameModel::playBackgroundMusic(const QUrl &source) {
 
 void GameModel::stopBackgroundMusic() {
     AudioManager::instance().stopBackgroundMusic();
+}
+
+void GameModel::spawnParticles(const QPointF &pos, const QColor &color, int count) {
+    for (int i = 0; i < count; ++i) {
+        double angle = QRandomGenerator::global()->generateDouble() * M_PI * 2;
+        double speed = QRandomGenerator::global()->generateDouble() * 3 + 1;
+        QPointF vel(std::cos(angle) * speed, std::sin(angle) * speed);
+        double size = QRandomGenerator::global()->generateDouble() * 0.3 + 0.1;
+        double life = QRandomGenerator::global()->generateDouble() * 0.5 + 0.3;
+        m_particles.push_back(Particle(pos, vel, color, size, life));
+    }
+    if (m_particleTimer && !m_particleTimer->isActive()) {
+        m_particleTimer->start();
+    }
+}
+
+void GameModel::updateParticles() {
+    double dt = 0.016;
+    for (auto &p : m_particles) {
+        p.pos += p.vel * dt;
+        p.life -= dt;
+    }
+    m_particles.erase(std::remove_if(m_particles.begin(), m_particles.end(),
+        [](const Particle &p) { return p.life <= 0; }), m_particles.end());
+}
+
+void GameModel::onParticleTimer() {
+    if (m_paused) return;
+    updateParticles();
+    if (m_particles.isEmpty()) {
+        if (m_particleTimer) m_particleTimer->stop();
+    }
+    emit trajectoryUpdated();
 }

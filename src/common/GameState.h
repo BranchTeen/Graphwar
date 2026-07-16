@@ -3,6 +3,7 @@
 #include "GamePhase.h"
 #include "Square.h"
 #include "SaveInfo.h"
+#include "Particle.h"
 #include <QVector>
 #include <QPointF>
 #include <QString>
@@ -31,4 +32,6 @@ struct GameState {
     bool bgmMuted = false;
     int sfxVolume = 80;
     bool sfxMuted = false;
+
+    QVector<Particle> particles;
 };

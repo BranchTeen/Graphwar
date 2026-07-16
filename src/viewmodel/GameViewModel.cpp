@@ -28,6 +28,7 @@ void GameViewModel::syncState() {
         auto h = m_model->history();
         m_state.history = h;
     }
+    m_state.particles = m_model->particles();
     m_state.config = m_model->config();
     m_state.message = m_model->message();
     m_state.gameOver = m_model->isGameOver();
@@ -69,6 +70,7 @@ void GameViewModel::forwardModelSignals() {
     });
     QObject::connect(m_model, &GameModel::trajectoryUpdated, [this]() {
         m_state.trajectory = m_model->trajectory();
+        m_state.particles = m_model->particles();
         fire(PROP_ID_TRAJECTORY);
     });
     QObject::connect(m_model, &GameModel::gameOver, [this](const QString&) {

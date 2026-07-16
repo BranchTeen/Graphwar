@@ -11,6 +11,7 @@ class QTimer;
 #include "common/GameConfig.h"
 #include "common/Square.h"
 #include "common/AudioState.h"
+#include "common/Particle.h"
 
 // GameModel：MVVM 的 Model 层
 // - 持有所有游戏状态（玩家、方块、障碍物、轨迹、回合数等）
@@ -50,6 +51,7 @@ public:
     QVector<Square> obstacles() const { return m_obstacles; }
     QVector<QPointF> trajectory() const { return m_trajectory; }
     QVector<QVector<QPointF>> history() const { return m_history; }
+    QVector<Particle> particles() const { return m_particles; }
 
     const GameConfig &config() const { return m_config; }
     void setConfig(const GameConfig &cfg) { m_config = cfg; }
@@ -114,6 +116,9 @@ private:
     void generateSquares(int count, const QColor &p1Color, const QColor &p2Color);
     void generateObstacles(int count, double size);
     void pickRandomSquare();
+    void spawnParticles(const QPointF &pos, const QColor &color, int count = 8);
+    void updateParticles();
+    void onParticleTimer();
 
     // ===== 持久化游戏状态 =====
     Player m_players[2];
@@ -136,4 +141,8 @@ private:
     double m_constAdjust = 0;
     bool m_hasHit = false;
     QTimer *m_animTimer = nullptr;   // Model 自身管理动画节奏
+    QTimer *m_particleTimer = nullptr; // 粒子更新定时器
+
+    // ===== 粒子效果 =====
+    QVector<Particle> m_particles;
 };

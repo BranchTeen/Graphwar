@@ -2,9 +2,8 @@
 #include "common/AudioState.h"
 #include <QUrl>
 #include <QFile>
+#include <QDebug>
 #include <QFileInfo>
-#include <QDir>
-#include <QStandardPaths>
 #include <QThread>
 #include <QTimer>
 #include <QMap>
@@ -74,58 +73,39 @@ AudioManager &AudioManager::instance() {
     return instance;
 }
 
-static QString extractQrcToTemp(const QUrl &source) {
-    QString urlStr = source.toString();
-    QString resourcePath;
-    if (urlStr.startsWith("qrc:///"))
-        resourcePath = ":/" + urlStr.mid(6);
-    else if (urlStr.startsWith("qrc:/"))
-        resourcePath = ":/" + urlStr.mid(5);
-    else
-        return QString();
-
-    QFile src(resourcePath);
-    if (!src.exists()) return QString();
-
-    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    if (tempDir.isEmpty()) tempDir = QDir::tempPath();
-
-    QString outPath = tempDir + "/graphwar_bgm.m4a";
-    if (QFileInfo::exists(outPath) && QFileInfo(outPath).size() == src.size())
-        return outPath;
-
-    QFile::remove(outPath);
-    if (src.copy(outPath))
-        return outPath;
-    return QString();
-}
-
 void AudioManager::playBackgroundMusic(const QUrl &source) {
     stopBackgroundMusic();
 
-    if (!source.isValid()) return;
-
-    QUrl playUrl = source;
-    if (source.scheme() == "qrc") {
-        QString localPath = extractQrcToTemp(source);
-        if (localPath.isEmpty()) return;
-        playUrl = QUrl::fromLocalFile(localPath);
+    if (!source.isValid() || !source.isLocalFile()) {
+        qDebug() << "[AudioManager] Invalid or non-local URL:" << source;
+        return;
     }
+
+    QString localPath = source.toLocalFile();
+    qDebug() << "[AudioManager] Playing BGM:" << localPath
+             << "exists:" << QFileInfo::exists(localPath);
+
+    if (!QFileInfo::exists(localPath)) return;
 
     m_bgmAudioOutput = new QAudioOutput(this);
     m_bgmAudioOutput->setVolume(m_bgmMuted ? 0.0f : (m_bgmVolume / 100.0f));
 
     m_bgmPlayer = new QMediaPlayer(this);
     m_bgmPlayer->setAudioOutput(m_bgmAudioOutput);
-    m_bgmPlayer->setSource(playUrl);
+
+    connect(m_bgmPlayer, &QMediaPlayer::errorOccurred, this, [](QMediaPlayer::Error err, const QString &desc) {
+        qDebug() << "[AudioManager] BGM error:" << err << desc;
+    });
 
     connect(m_bgmPlayer, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
+        qDebug() << "[AudioManager] BGM status:" << status;
         if (status == QMediaPlayer::EndOfMedia) {
             m_bgmPlayer->setPosition(0);
             m_bgmPlayer->play();
         }
     });
 
+    m_bgmPlayer->setSource(source);
     m_bgmPlayer->play();
 }
 

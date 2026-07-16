@@ -3,6 +3,10 @@
 #include "view/widgets/FunctionInput.h"
 #include "view/widgets/SaveManagerPage.h"
 #include "view/widgets/PauseMenuPage.h"
+#include <QFileInfo>
+#include <QDir>
+#include <QStandardPaths>
+#include <QTimer>
 
 GraphwarApp::GraphwarApp()
     : m_main_wnd()
@@ -40,7 +44,42 @@ GraphwarApp::GraphwarApp()
 
     m_view_model.add_notification(m_main_wnd.get_notification());
 
-    m_view_model.playBackgroundMusic(QUrl("qrc:///AIZO-8bit.m4a"));
+    QString bgmPath;
+    QStringList searchPaths;
+    searchPaths << QCoreApplication::applicationDirPath() + "/resources/AIZO-8bit.m4a";
+    searchPaths << QCoreApplication::applicationDirPath() + "/AIZO-8bit.m4a";
+    searchPaths << QDir::currentPath() + "/resources/AIZO-8bit.m4a";
+    searchPaths << QCoreApplication::applicationDirPath() + "/../resources/AIZO-8bit.m4a";
+
+    for (const QString &path : searchPaths) {
+        if (QFileInfo::exists(path)) {
+            bgmPath = path;
+            break;
+        }
+    }
+
+    if (bgmPath.isEmpty()) {
+        QFile src(":/AIZO-8bit.m4a");
+        if (src.exists()) {
+            QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+                               + "/graphwar_bgm.m4a";
+            if (!QFile::exists(tempPath) || QFileInfo(tempPath).size() != src.size()) {
+                QFile::remove(tempPath);
+                if (src.copy(tempPath)) {
+                    bgmPath = tempPath;
+                }
+            } else {
+                bgmPath = tempPath;
+            }
+        }
+    }
+
+    if (!bgmPath.isEmpty()) {
+        QUrl bgmUrl = QUrl::fromLocalFile(bgmPath);
+        QTimer::singleShot(0, this, [this, bgmUrl]() {
+            m_view_model.playBackgroundMusic(bgmUrl);
+        });
+    }
 }
 
 GraphwarApp::~GraphwarApp() noexcept {}

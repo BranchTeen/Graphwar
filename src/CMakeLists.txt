@@ -46,9 +46,8 @@ set_target_properties(Graphwar PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINA
 
 target_precompile_headers(Graphwar PRIVATE precomp.h)
 
-target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${FFMPEG_INCLUDE_DIRS})
-target_link_directories(Graphwar PRIVATE ${FFMPEG_LIBRARY_DIRS})
-target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia ${FFMPEG_LIBRARIES})
+target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia)
 
 if(WIN32)
     set_target_properties(Graphwar PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -115,34 +114,18 @@ if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
         endif()
     endif()
 
-    set(_qt_multimedia_plugins_media "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/Qt6/plugins/mediaservice")
+    set(_qt_multimedia_plugins_media "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/Qt6/plugins/multimedia")
     if(EXISTS "${_qt_multimedia_plugins_media}")
         file(GLOB _media_plugins "${_qt_multimedia_plugins_media}/*")
         if(_media_plugins)
             add_custom_command(TARGET Graphwar POST_BUILD
                 COMMAND "${CMAKE_COMMAND}" -E make_directory
-                        "$<TARGET_FILE_DIR:Graphwar>/mediaservice"
+                        "$<TARGET_FILE_DIR:Graphwar>/multimedia"
                 COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                         ${_media_plugins}
-                        "$<TARGET_FILE_DIR:Graphwar>/mediaservice/"
-                COMMENT "Deploying Qt mediaservice plugins"
+                        "$<TARGET_FILE_DIR:Graphwar>/multimedia/"
+                COMMENT "Deploying Qt multimedia plugins"
             )
         endif()
-    endif()
-
-    file(GLOB _ffmpeg_dlls
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avcodec*.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avformat*.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avutil*.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swresample*.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swscale*.dll"
-    )
-    if(_ffmpeg_dlls)
-        add_custom_command(TARGET Graphwar POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                    ${_ffmpeg_dlls}
-                    "$<TARGET_FILE_DIR:Graphwar>/"
-            COMMENT "Copying FFmpeg DLLs for Qt Multimedia FFmpeg backend"
-        )
     endif()
 endif()

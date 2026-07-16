@@ -1,19 +1,16 @@
 #pragma once
 #include <QObject>
+#include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QAudioSink>
 #include <QIODevice>
 #include <QAudioFormat>
-#include <QThread>
 #include <QMutex>
 #include <QUrl>
 #include <QString>
-#include <QDateTime>
-#include <QCoreApplication>
 #include <QVector>
 #include <QMap>
 #include "common/AudioState.h"
-
-class AudioDecoderThread;
 
 class AudioManager : public QObject {
     Q_OBJECT
@@ -48,9 +45,6 @@ private:
     explicit AudioManager(QObject *parent = nullptr);
     ~AudioManager() override;
 
-    bool ensureBgmSinkCreated(int sampleRate, int channels);
-    void writeBgmPcm(const char *data, int bytes);
-
     struct WavData {
         int sampleRate = 0;
         int channels = 0;
@@ -63,12 +57,8 @@ private:
 
     int m_bgmVolume;
     bool m_bgmMuted;
-    QString m_currentFilePath;
-    AudioDecoderThread *m_decoder;
-
-    QMutex m_bgmSinkMutex;
-    QAudioSink *m_bgmSink;
-    QIODevice *m_bgmSinkIo;
+    QMediaPlayer *m_bgmPlayer;
+    QAudioOutput *m_bgmAudioOutput;
 
     int m_sfxVolume;
     bool m_sfxMuted;
@@ -76,6 +66,4 @@ private:
     QVector<class SfxPlayer *> m_activeSfx;
     QMap<int, WavData> m_sfxCache;
     QMutex m_sfxCacheMutex;
-
-    friend class AudioDecoderThread;
 };

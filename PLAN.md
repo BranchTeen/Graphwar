@@ -178,7 +178,7 @@
 | 数学解析 | ShuntingYard 调车场算法 + Token 流求值 |
 | 图形渲染 | QWidget + QPainter 自定义绘制 |
 | 粒子系统 | QPointF + QPainter 自定义实现 |
-| 音频播放 | Qt6 Multimedia + QAudioSink |
+| 音频播放 | Qt6 Multimedia (QMediaPlayer + QAudioOutput for BGM, QAudioSink for SFX) |
 | 存档格式 | JSON 文件 |
 | 架构模式 | MVVM + PropertyTrigger + Command (Model-View-ViewModel) |
 | 预编译头 | precomp.h（标准库 + Qt6 + 项目公共头文件） |
@@ -369,8 +369,8 @@ struct Particle {
 
 **音频管理器（单例模式）：**
 - `AudioManager::instance()` 获取全局唯一实例
-- **BGM 播放**：使用 QAudioSink + FFmpeg 解码 M4A 文件
-- **SFX 播放**：程序合成 WAV 音效，缓存避免重复合成
+- **BGM 播放**：使用 QMediaPlayer + QAudioOutput 播放 M4A 文件（自动循环）
+- **SFX 播放**：程序合成 WAV 音效，通过 QAudioSink 播放，缓存避免重复合成
 
 **支持的音效类型：**
 
@@ -733,4 +733,4 @@ A: 可执行文件旁的 `platforms/qwindows.dll`（Windows）或 `libqcocoa.dyl
 A: PLAN.md 中的规则描述需与 `GameModel.cpp` / `GameModel.h` / `GameConfig.h` 的实际实现一致；架构描述需与 `frame.h` / `GameViewModel.cpp` / `GraphwarApp.cpp` 一致；任何逻辑/配置变更后请同步更新 PLAN.md。
 
 **Q: 音频播放没有声音？**
-A: 检查系统音量设置；检查游戏配置页的 BGM/SFX 音量是否被静音；确保 `AIZO-8bit.m4a` 文件存在于 `resources/` 目录。
+A: 检查系统音量设置；检查游戏配置页的 BGM/SFX 音量是否被静音；确保 Qt Multimedia 后端正确部署（Windows 需要 `mediaservice/` 目录包含 `windowsmediafoundation.dll`，Linux 需要 `gstreamer` 后端，macOS 使用 `AVFoundation`）。

@@ -46,9 +46,8 @@ set_target_properties(Graphwar PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINA
 
 target_precompile_headers(Graphwar PRIVATE precomp.h)
 
-target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${FFMPEG_INCLUDE_DIRS})
-target_link_directories(Graphwar PRIVATE ${FFMPEG_LIBRARY_DIRS})
-target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia ${FFMPEG_LIBRARIES})
+target_include_directories(Graphwar PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Graphwar PRIVATE Qt6::Widgets Qt6::Multimedia)
 
 if(WIN32)
     set_target_properties(Graphwar PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -129,39 +128,4 @@ if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
             )
         endif()
     endif()
-endif()
-
-if(WIN32 AND DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
-    set(_ffmpeg_dlls
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avcodec-62.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avformat-62.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/avutil-60.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swresample-6.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/swscale-9.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/bz2.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/z.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/zstd.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/libpng16.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/freetype.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/harfbuzz.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/brotlicommon.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/brotlidec.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/pcre2-16.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/double-conversion.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icudt78.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icuin78.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/icuuc78.dll"
-        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/md4c.dll"
-    )
-
-    foreach(_dll ${_ffmpeg_dlls})
-        if(EXISTS "${_dll}")
-            add_custom_command(TARGET Graphwar POST_BUILD
-                COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-                        "${_dll}"
-                        "$<TARGET_FILE_DIR:Graphwar>/"
-                COMMENT "Copying ${_dll}"
-            )
-        endif()
-    endforeach()
 endif()

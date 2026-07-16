@@ -7,9 +7,6 @@
         },
         {
             "name": "qtmultimedia"
-        },
-        {
-            "name": "ffmpeg"
         }
     ]
 }

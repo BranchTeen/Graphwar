@@ -92,6 +92,10 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     QVector<QVector<QPointF>> fullHistory = s.history;
     QVector<QPointF> history = fullHistory.isEmpty() ? QVector<QPointF>() : fullHistory.last();
     if (!history.isEmpty()) {
+        p.setPen(QPen(QColor(100, 100, 100, 120), 4));
+        for (int i = 1; i < history.size(); ++i)
+            p.drawLine(worldToScreen(history[i-1].x(), history[i-1].y()),
+                       worldToScreen(history[i].x(), history[i].y()));
         p.setPen(QPen(QColor(100, 100, 100), 1));
         for (int i = 1; i < history.size(); ++i)
             p.drawLine(worldToScreen(history[i-1].x(), history[i-1].y()),
@@ -101,7 +105,21 @@ void GameCanvas::paintEvent(QPaintEvent *) {
     const auto &traj = s.trajectory;
     if (!traj.isEmpty()) {
         QColor playerColor = s.playerColors[curPlayer];
-        p.setPen(QPen(playerColor, 2));
+
+        QColor glowColor = playerColor;
+        glowColor.setAlphaF(0.4);
+        p.setPen(QPen(glowColor, 5));
+        for (int i = 1; i < traj.size(); ++i)
+            p.drawLine(worldToScreen(traj[i-1].x(), traj[i-1].y()),
+                       worldToScreen(traj[i].x(), traj[i].y()));
+
+        glowColor.setAlphaF(0.6);
+        p.setPen(QPen(glowColor, 3));
+        for (int i = 1; i < traj.size(); ++i)
+            p.drawLine(worldToScreen(traj[i-1].x(), traj[i-1].y()),
+                       worldToScreen(traj[i].x(), traj[i].y()));
+
+        p.setPen(QPen(playerColor, 1));
         for (int i = 1; i < traj.size(); ++i)
             p.drawLine(worldToScreen(traj[i-1].x(), traj[i-1].y()),
                        worldToScreen(traj[i].x(), traj[i].y()));
@@ -109,7 +127,23 @@ void GameCanvas::paintEvent(QPaintEvent *) {
 
     if (!traj.isEmpty()) {
         QPointF bullet = worldToScreen(traj.last().x(), traj.last().y());
-        p.setBrush(QBrush(s.playerColors[curPlayer]));
+        QColor playerColor = s.playerColors[curPlayer];
+
+        QColor bulletGlow = playerColor;
+        bulletGlow.setAlphaF(0.3);
+        p.setBrush(QBrush(bulletGlow));
+        p.setPen(Qt::NoPen);
+        p.drawEllipse(bullet, 15, 15);
+
+        bulletGlow.setAlphaF(0.5);
+        p.setBrush(QBrush(bulletGlow));
+        p.drawEllipse(bullet, 11, 11);
+
+        bulletGlow.setAlphaF(0.7);
+        p.setBrush(QBrush(bulletGlow));
+        p.drawEllipse(bullet, 8, 8);
+
+        p.setBrush(QBrush(playerColor));
         p.setPen(QPen(QColor(255, 255, 255), 1));
         p.drawEllipse(bullet, 5, 5);
     }

@@ -144,25 +144,19 @@
 
 对话较长，选取中期验收之后的部分截图
 
-![](image/c7eb127e1f71f867f4821a86f8a9ff64.jpg)
-
-![](image/f14d9195d9b5a4ad290dc9138497e7c4.jpg)
-
-![](image/67105f66e4c654a8f8ba7100ccb9e8fc.png)
-
-![](image/e6821d60ae441433a852700a1fbbef2b.png)
-
-![](image/1a40376a72fd383d0b46aea53f99b174.png)
-
-![](image/de6f5ad14d5f07f3301e2b3cbb364338.png)
-
-![](image/c8101001a25b4b841fd96e967d85c971.png)
-
 ![](image/chat1.png)
 
 ![](image/chat2.png)
 
 ![](image/chat3.png)
+
+![](image/chat4.png)
+
+![](image/chat5.png)
+
+![](image/chat6.png)
+
+![](image/chat7.png)
 
 ### 2.5 实际效果与现存问题
 
